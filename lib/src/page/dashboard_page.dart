@@ -1,4 +1,5 @@
 import 'package:appcaixaauto/src/Widget/drawer_app.dart';
+import 'package:appcaixaauto/src/page/carrinho_compra.dart';
 import 'package:flutter/material.dart';
 
 import '../Widget/app_bar_app.dart';
@@ -9,6 +10,18 @@ class DashboardPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBarApp(),
       drawer: DrawerApp(),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.all(10.0),
+        child: FloatingActionButton(onPressed: (){ Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const CarrinhoCompra(),
+          ),);
+          },
+        backgroundColor: Color(0xFF22D3EE),
+        
+        child: Icon(Icons.shopping_cart, color: const Color.fromARGB(255, 1, 14, 58),),
+        ),
+      ),
       backgroundColor: Color(0xFF0F172A),
       body: SafeArea(
         child: SingleChildScrollView(

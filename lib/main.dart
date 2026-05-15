@@ -13,25 +13,37 @@ void main() {
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  
-
- @override
- Widget build(BuildContext context) {
- return MaterialApp(
- title: 'Flutter Demo',
- theme: ThemeData(primarySwatch: Colors.blue),
- home: LoginPage(),
- );
- }
- 
   @override
-  State<StatefulWidget> createState() {
-    // TODO: implement createState
-    throw UnimplementedError();
-  }
+  State<MyApp> createState() => _MyAppState();
 }
 
-class DashboardPage extends StatelessWidget {
+class _MyAppState extends State<MyApp> {
+  final AppLinks appLinks = AppLinks();
+
+  @override
+  void initState() {
+    super.initState();
+    initDeepLink();
+  }
+
+  void initDeepLink() {
+    appLinks.uriLinkStream.listen((Uri uri) {
+      print(uri);
+      print(uri.host);
+      print(uri.pathSegments);
+
+      if (uri.host == "session" && uri.pathSegments.isNotEmpty) {
+        final sessionId = uri.pathSegments.first;
+
+        print("SESSION -> $sessionId");
+
+        navigatorKey.currentState?.push(
+          MaterialPageRoute(builder: (_) => CarrinhoCompra(session: sessionId)),
+        );
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
