@@ -5,29 +5,113 @@ class CarrinhoCompra extends StatelessWidget {
 
   const CarrinhoCompra({super.key, this.session});
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Seu Carrinho '),
-        backgroundColor: Color(0xFF22D3EE),
-        
-      ),
-      backgroundColor: Color(0xFF0F172A),
-      body: Padding(
-        padding: EdgeInsets.all(8),
-        child: SingleChildScrollView(
-          child: Column(children: [Text("hi!!!", style: TextStyle(color: Colors.white))])
+  
+  Widget carItem(String nome, String preco, String imagemUrl) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Row(
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                image: DecorationImage(
+                  
+                  image: NetworkImage(imagemUrl.isNotEmpty ? imagemUrl : "https://via.placeholder.com/80"),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  
+                  Text(
+                    nome,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 5),
+                  
+                  Text(
+                    "R\$ $preco",
+                    style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                  )
+                ],
+              ),
+            ),
+            Row(
+              children: [
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.remove_circle_outline),
+                ),
+                const Text("1"),
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.add_circle_outline, color: Colors.blue),
+                ),
+              ],
+            )
+          ],
         ),
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Vai substituir isso aqui pelos dados passados pelo banco
+    final List<Map<String, String>> itensDoCarrinho = [
+      {
+        "nome": "Notebook Gamer",
+        "preco": "4.500,00",
+        "imagem": "https://images.unsplash.com/photo-1603302576837-37561b2e2302?w=150"
+      },
+      {
+        "nome": "Mouse Sem Fio",
+        "preco": "150,00",
+        "imagem": "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=150"
+      },
+      {
+        "nome": "Teclado Mecânico",
+        "preco": "350,00",
+        "imagem": "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=150"
+      },
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Seu Carrinho', style: TextStyle(color: Colors.black)),
+        backgroundColor: const Color(0xFF22D3EE),
+      ),
+      backgroundColor: const Color(0xFF0F172A),
       
-      // 1. Trocamos bottomSheet por bottomNavigationBar
+      body: Padding(
+        padding: const EdgeInsets.only(top: 8.0),
+        child: ListView.builder(
+          itemCount: itensDoCarrinho.length,
+          itemBuilder: (context, index) {
+            final item = itensDoCarrinho[index];
+            
+            return carItem(
+              item["nome"]!,
+              item["preco"]!,
+              item["imagem"]!,
+            );
+          },
+        ),
+      ),
+
       bottomNavigationBar: Container(
-        // 2. Adicionamos a MESMA cor do Scaffold para camuflar o Container
-        color: Color(0xFF0F172A), 
+        color: const Color(0xFF0F172A),
         height: 80,
         width: double.infinity,
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Row(
           mainAxisSize: MainAxisSize.max,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -35,14 +119,14 @@ class CarrinhoCompra extends StatelessWidget {
             Expanded(
               child: ElevatedButton(
                 onPressed: () {},
-                child: Text('Finalizar compra'),
+                child: const Text('Finalizar compra'),
               ),
             ),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Expanded(
               child: ElevatedButton(
-                onPressed: () {}, 
-                child: Text('compra')
+                onPressed: () {},
+                child: const Text('Continuar Comprando'),
               ),
             ),
           ],
