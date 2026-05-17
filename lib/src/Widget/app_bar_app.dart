@@ -8,7 +8,7 @@ class AppBarApp extends StatelessWidget implements PreferredSizeWidget {
     return AppBar(
       backgroundColor: const Color(0xFF0F172A),
       elevation: 0,
-
+      iconTheme: IconThemeData(color: Color(0xFF22D3EE),),
       title: Row(
         children: [
           const CircleAvatar(

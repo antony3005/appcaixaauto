@@ -1,6 +1,7 @@
 import 'package:app_links/app_links.dart';
 import 'package:appcaixaauto/src/page/carrinho_compra.dart';
 import 'package:appcaixaauto/src/page/dashboard_page.dart';
+import 'package:appcaixaauto/src/page/login.dart';
 import 'package:flutter/material.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
@@ -57,7 +58,7 @@ class _MyAppState extends State<MyApp> {
       title: '24/7',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: DashboardPage(),
+      home: LoginPage(),
     );
   }
 }
