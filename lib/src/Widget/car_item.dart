@@ -28,7 +28,7 @@ Widget carItem(Item item, {VoidCallback? onAdd, VoidCallback? onRemove}) {
               width: 90,
               height: 90,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) {
+              errorBuilder: (_, _, _) {
                 return Container(
                   width: 90,
                   height: 90,

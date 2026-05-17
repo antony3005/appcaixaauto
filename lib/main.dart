@@ -1,7 +1,6 @@
 import 'package:app_links/app_links.dart';
 import 'package:appcaixaauto/src/page/carrinho_compra.dart';
 import 'package:appcaixaauto/src/page/dashboard_page.dart';
-import 'package:appcaixaauto/src/page/login.dart';
 import 'package:flutter/material.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();

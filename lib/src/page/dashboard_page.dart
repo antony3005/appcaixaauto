@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../Widget/app_bar_app.dart';
 
 class DashboardPage extends StatelessWidget {
+  const DashboardPage({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
