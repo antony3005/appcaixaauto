@@ -26,22 +26,29 @@ class _MyAppState extends State<MyApp> {
     initDeepLink();
   }
 
-  void initDeepLink() {
+  void initDeepLink() async {
+
+    final initialUri = await appLinks.getInitialLink();
+
+    if (initialUri != null) {
+      handleDeepLink(initialUri);
+    }
+
     appLinks.uriLinkStream.listen((Uri uri) {
-      print(uri);
-      print(uri.host);
-      print(uri.pathSegments);
-
-      if (uri.host == "session" && uri.pathSegments.isNotEmpty) {
-        final sessionId = uri.pathSegments.first;
-
-        print("SESSION -> $sessionId");
-
-        navigatorKey.currentState?.push(
-          MaterialPageRoute(builder: (_) => CarrinhoCompra(session: sessionId)),
-        );
-      }
+      handleDeepLink(uri);
     });
+  }
+
+  void handleDeepLink(Uri uri) {
+    print(uri);
+
+    if (uri.host == "session" && uri.pathSegments.isNotEmpty) {
+      final sessionId = uri.pathSegments.first;
+
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(builder: (_) => CarrinhoCompra(session: sessionId)),
+      );
+    }
   }
 
   @override

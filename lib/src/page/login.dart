@@ -1,7 +1,8 @@
-import 'package:appcaixaauto/src/page/dashboard_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Necessário para os formatadores
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
+
+import 'dashboard_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
