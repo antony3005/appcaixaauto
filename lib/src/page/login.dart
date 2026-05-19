@@ -54,7 +54,6 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 40),
 
-              // Campo de CPF configurado corretamente
               _buildTextField(
                 label: "CPF",
                 hint: "000.000.000-00",
@@ -62,10 +61,8 @@ class _LoginPageState extends State<LoginPage> {
                 icon: Icons.badge,
                 isPassword: false,
                 keyboardType: TextInputType.number,
-                // Abre teclado numérico
-                inputFormatters: [cpfMask], // Aplica a máscara visual
+                inputFormatters: [cpfMask], 
               ),
-
               const SizedBox(height: 40),
 
               SizedBox(

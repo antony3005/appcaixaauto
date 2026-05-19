@@ -1,43 +1,125 @@
+import 'package:appcaixaauto/src/Widget/app_bar_app.dart';
 import 'package:appcaixaauto/src/Widget/drawer_app.dart';
+import 'package:appcaixaauto/src/Widget/product_card.dart';
+import 'package:appcaixaauto/src/model/carrinho_model.dart';
 import 'package:appcaixaauto/src/page/carrinho_compra.dart';
 import 'package:flutter/material.dart';
 
-import '../Widget/app_bar_app.dart';
-
-class DashboardPage extends StatelessWidget {
+class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
+
+  @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+
+  /// LISTA DE PRODUTOS
+  List<Item> products = [
+
+    Item(
+      itemId: "1",
+      carrinhoId: "10",
+      productId: 1001,
+      barcode: "789123456",
+      name: "iPhone 15 Pro Max",
+      foto: "iphone.jpg",
+      unitPrice: 7999.90,
+      quantity: 1,
+      requiresWeight: false,
+      expectedWeight: null,
+      receivedWeight: null,
+      status: ItemStatus.PENDING,
+    ),
+
+    Item(
+      itemId: "2",
+      carrinhoId: "10",
+      productId: 1002,
+      barcode: "789123457",
+      name: "Notebook Gamer RTX",
+      foto: "notebook.jpg",
+      unitPrice: 5499.90,
+      quantity: 1,
+      requiresWeight: false,
+      expectedWeight: null,
+      receivedWeight: null,
+      status: ItemStatus.VALIDATED,
+    ),
+
+    Item(
+      itemId: "3",
+      carrinhoId: "10",
+      productId: 1003,
+      barcode: "789123458",
+      name: "Headset Gamer RGB",
+      foto: "headset.jpg",
+      unitPrice: 299.90,
+      quantity: 1,
+      requiresWeight: false,
+      expectedWeight: null,
+      receivedWeight: null,
+      status: ItemStatus.CANCELED,
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+
       appBar: AppBarApp(),
+
       drawer: DrawerApp(),
+
+      backgroundColor: const Color(0xFF0F172A),
+
       floatingActionButton: Padding(
-        padding: const EdgeInsets.all(10.0),
-        child: FloatingActionButton(onPressed: (){ Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const CarrinhoCompra(),
-          ),);
+        padding: const EdgeInsets.all(10),
+
+        child: FloatingActionButton(
+          backgroundColor: const Color(0xFF22D3EE),
+
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const CarrinhoCompra(),
+              ),
+            );
           },
-        backgroundColor: Color(0xFF22D3EE),
-        
-        child: Icon(Icons.shopping_cart, color: const Color.fromARGB(255, 1, 14, 58),),
+
+          child: const Icon(
+            Icons.shopping_cart,
+            color: Color.fromARGB(255, 1, 14, 58),
+          ),
         ),
       ),
-      backgroundColor: Color(0xFF0F172A),
+
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.all(20),
+
+          padding: const EdgeInsets.all(20),
+
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+
             children: [
 
-              SizedBox(height: 25),
+              /// ESPAÇO
+              const SizedBox(height: 20),
+
+              /// CARD SALDO
               _buildBalanceCard(),
-              SizedBox(height: 25),
+
+              const SizedBox(height: 30),
+
+              /// AÇÕES RÁPIDAS
               _buildQuickActions(),
-              SizedBox(height: 30),
-              _buildRecentActivity(),
+
+              const SizedBox(height: 35),
+
+              /// PRODUTOS
+              _buildProducts(),
             ],
           ),
         ),
@@ -45,22 +127,33 @@ class DashboardPage extends StatelessWidget {
     );
   }
 
-
+  /// =========================
+  /// CARD DE SALDO
+  /// =========================
   Widget _buildBalanceCard() {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
+
       decoration: BoxDecoration(
-        color: Color(0xFF1E293B),
+        color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white10),
       ),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+
         children: [
-          Text("Saldo disponível", style: TextStyle(color: Colors.white70)),
-          SizedBox(height: 8),
-          Text(
+
+          const Text(
+            "Saldo disponível",
+            style: TextStyle(color: Colors.white70),
+          ),
+
+          const SizedBox(height: 8),
+
+          const Text(
             "BRL 12.450,00",
             style: TextStyle(
               color: Colors.white,
@@ -73,13 +166,21 @@ class DashboardPage extends StatelessWidget {
     );
   }
 
+  /// =========================
+  /// AÇÕES RÁPIDAS
+  /// =========================
   Widget _buildQuickActions() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
       children: [
+
         _actionItem(Icons.bolt, "Pix"),
+
         _actionItem(Icons.qr_code_scanner, "Pagar"),
+
         _actionItem(Icons.outbox, "Enviar"),
+
         _actionItem(Icons.add, "Depositar"),
       ],
     );
@@ -88,58 +189,69 @@ class DashboardPage extends StatelessWidget {
   Widget _actionItem(IconData icon, String label) {
     return Column(
       children: [
+
         Container(
           height: 60,
           width: 60,
+
           decoration: BoxDecoration(
-            color: Color(0xFF22D3EE),
+            color: const Color(0xFF22D3EE),
             borderRadius: BorderRadius.circular(15),
           ),
-          child: Icon(icon, color: Colors.black),
+
+          child: Icon(
+            icon,
+            color: Colors.black,
+          ),
         ),
-        SizedBox(height: 8),
-        Text(label, style: TextStyle(color: Colors.white70, fontSize: 12)),
+
+        const SizedBox(height: 8),
+
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 12,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildRecentActivity() {
+  /// =========================
+  /// LISTA DE PRODUTOS
+  /// =========================
+  Widget _buildProducts() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+
       children: [
-        Text(
-          "Atividade Recente",
+
+        const Text(
+          "Produtos em destaque",
           style: TextStyle(
             color: Colors.white,
-            fontSize: 18,
+            fontSize: 22,
             fontWeight: FontWeight.bold,
           ),
         ),
-        SizedBox(height: 15),
-        _transactionTile("Supermercado", "- BRL 89,00", Colors.redAccent),
-        _transactionTile("Pix Recebido", "+ BRL 250,00", Color(0xFF22D3EE)),
-      ],
-    );
-  }
 
-  Widget _transactionTile(String title, String value, Color valueColor) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 12),
-      padding: EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.02),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(title, style: TextStyle(color: Colors.white)),
-          Text(
-            value,
-            style: TextStyle(color: valueColor, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
+        const SizedBox(height: 20),
+
+        ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+
+          itemCount: products.length,
+
+          itemBuilder: (context, index) {
+
+            final product = products[index];
+
+            return productCard(product);
+          },
+        ),
+      ],
     );
   }
 }
