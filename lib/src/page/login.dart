@@ -1,7 +1,13 @@
+import 'dart:convert';
+
+import 'package:appcaixaauto/src/model/user_model.dart';
+import 'package:appcaixaauto/src/page/cadastro_page.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Necessário para os formatadores
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
+import '../model/UserPreferences.dart';
 import 'dashboard_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -12,10 +18,9 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // 1. Controlador para o CPF
   final TextEditingController _cpfController = TextEditingController();
+  final TextEditingController _senhaController = TextEditingController();
 
-  // 2. Definição da Máscara
   final cpfMask = MaskTextInputFormatter(
     mask: '###.###.###-##',
     filter: {"#": RegExp(r'[0-9]')},
@@ -24,7 +29,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
-    _cpfController.dispose(); // Boa prática: libera memória ao fechar a tela
+    _cpfController.dispose();
     super.dispose();
   }
 
@@ -61,10 +66,17 @@ class _LoginPageState extends State<LoginPage> {
                 icon: Icons.badge,
                 isPassword: false,
                 keyboardType: TextInputType.number,
-                inputFormatters: [cpfMask], 
+                inputFormatters: [cpfMask],
               ),
               const SizedBox(height: 40),
-
+              _buildTextField(
+                label: "SENHA",
+                hint: "***",
+                controller: _senhaController,
+                icon: Icons.password,
+                isPassword: true,
+                keyboardType: TextInputType.visiblePassword,
+              ),
               SizedBox(
                 width: double.infinity,
                 height: 55,
@@ -72,16 +84,13 @@ class _LoginPageState extends State<LoginPage> {
                   onPressed: () {
                     String cpfLimpo = cpfMask.getUnmaskedText();
 
-                    if (validarCpf(cpfLimpo)) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => DashboardPage(),
-                        ),
+                    if (!validarCpf(cpfLimpo)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("CPF inválido")),
                       );
+                    } else {
+                      login();
                     }
-                    print("CPF digitado: ${_cpfController.text}");
-                    print("CPF para enviar à API: $cpfLimpo");
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF22D3EE),
@@ -104,7 +113,12 @@ class _LoginPageState extends State<LoginPage> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => CadastroPage()),
+                    );
+                  },
                   child: const Text(
                     "Não possui conta?",
                     style: TextStyle(color: Color(0xFF22D3EE), fontSize: 16),
@@ -145,6 +159,40 @@ class _LoginPageState extends State<LoginPage> {
     int digito2 = calcularDigito(cpf.substring(0, 9) + digito1.toString(), 11);
 
     return cpf.endsWith('$digito1$digito2');
+  }
+
+  Future<void> login() async {
+    try {
+      final response = await http.post(
+        Uri.parse("http://SEU_IP:8080/auth/login"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "cpf": _cpfController.text,
+          "senha": _senhaController.text,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        final tokem = data["Token"];
+        final user = data["user"];
+
+        UserModel use = UserModel.fromJson(user);
+        use.token = tokem;
+
+        UserPreferences.saveUser(use);
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => DashboardPage()),
+        );
+      } else {
+        print(response.body);
+      }
+    } catch (e) {
+      print(e);
+    }
   }
 
   Widget _buildTextField({
