@@ -59,7 +59,7 @@ class _CadastroPageState extends State<CadastroPage> {
     Future<void> cadastrar() async {
       try {
         final response = await http.post(
-          Uri.parse("http://10.0.2.2:8080/auth/register"),
+          Uri.parse("http://192.168.86.7:8080/auth/register"),
           headers: {"Content-Type": "application/json"},
 
           body: jsonEncode({
@@ -222,11 +222,54 @@ class _CadastroPageState extends State<CadastroPage> {
               TextFormField(
                 controller: dataNascimentoController,
                 keyboardType: TextInputType.datetime,
+                inputFormatters: [
+                  // SÓ NÚMEROS
+                  FilteringTextInputFormatter.digitsOnly,
+
+                  // MÁSCARA DD/MM/YYYY
+                  TextInputFormatter.withFunction((oldValue, newValue) {
+                    String text = newValue.text;
+
+                    if (text.length > 8) {
+                      return oldValue;
+                    }
+
+                    String newText = "";
+
+                    for (int i = 0; i < text.length; i++) {
+                      if (i == 2 || i == 4) {
+                        newText += "/";
+                      }
+
+                      newText += text[i];
+                    }
+
+                    return TextEditingValue(
+                      text: newText,
+                      selection: TextSelection.collapsed(
+                        offset: newText.length,
+                      ),
+                    );
+                  }),
+                ],
+
                 decoration: const InputDecoration(
                   labelText: "Data de nascimento",
-                  hintText: "dd/MM/yyyy",
+                  hintText: "13/05/2008",
                   border: OutlineInputBorder(),
                 ),
+
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return "Informe a data";
+                  }
+
+                  if (!RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(value)) {
+                    return "Data inválida";
+                  }
+
+                  return null;
+                },
               ),
 
               const SizedBox(height: 24),

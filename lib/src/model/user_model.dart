@@ -8,7 +8,7 @@ class UserModel {
   final String telefone;
   final String dataNascimento;
   final String foto;
-  final String emailVerificado;
+  final bool emailVerificado;
   final String role;
    String? token;
 
@@ -29,7 +29,7 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      userId: json['userId'] ?? '',
+      userId: json['userId'].toString() ?? '',
       nome: json['nome'] ?? '',
       nomeCompleto: json['nome_completo'] ?? '',
       email: json['email'] ?? '',
@@ -71,7 +71,7 @@ class UserModel {
     String? telefone,
     String? dataNascimento,
     String? foto,
-    String? emailVerificado,
+    bool? emailVerificado,
     String? role,
     String? token,
   }) {
@@ -89,5 +89,4 @@ class UserModel {
       role: role ?? this.role,
       token: token ?? this.token,
     );
-  }
-}
+  }}

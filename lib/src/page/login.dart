@@ -68,7 +68,7 @@ class _LoginPageState extends State<LoginPage> {
                 keyboardType: TextInputType.number,
                 inputFormatters: [cpfMask],
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 10),
               _buildTextField(
                 label: "SENHA",
                 hint: "***",
@@ -77,6 +77,8 @@ class _LoginPageState extends State<LoginPage> {
                 isPassword: true,
                 keyboardType: TextInputType.visiblePassword,
               ),
+              const SizedBox(height: 40),
+
               SizedBox(
                 width: double.infinity,
                 height: 55,
@@ -163,11 +165,13 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> login() async {
     try {
+      String cpfLimpo = _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '');
+
       final response = await http.post(
-        Uri.parse("http://SEU_IP:8080/auth/login"),
+        Uri.parse("http://192.168.86.7:8080/auth/login"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
-          "cpf": _cpfController.text,
+          "cpf": cpfLimpo,
           "senha": _senhaController.text,
         }),
       );
