@@ -17,7 +17,6 @@ class UserPreferences {
     await prefs.setString(userKey, userJson);
   }
 
-  // PEGAR USUÁRIO
   static Future<UserModel?> getUser() async {
 
     final prefs = await SharedPreferences.getInstance();

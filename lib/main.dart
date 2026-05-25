@@ -40,17 +40,22 @@ class _MyAppState extends State<MyApp> {
   }
 
   void handleDeepLink(Uri uri) {
-    print(uri);
+    print("Deep Link recebido: $uri");
 
     if (uri.host == "session" && uri.pathSegments.isNotEmpty) {
       final sessionId = uri.pathSegments.first;
 
-      navigatorKey.currentState?.push(
-        MaterialPageRoute(builder: (_) => CarrinhoCompra(session: sessionId)),
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (navigatorKey.currentState != null) {
+          navigatorKey.currentState!.push(
+            MaterialPageRoute(builder: (_) => CarrinhoCompra(session: sessionId)),
+          );
+        } else {
+          print("Erro: navigatorKey.currentState ainda é nulo!");
+        }
+      });
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

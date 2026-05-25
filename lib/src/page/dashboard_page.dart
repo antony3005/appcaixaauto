@@ -1,9 +1,13 @@
+import 'dart:convert';
+
 import 'package:appcaixaauto/src/Widget/app_bar_app.dart';
 import 'package:appcaixaauto/src/Widget/drawer_app.dart';
 import 'package:appcaixaauto/src/Widget/product_card.dart';
 import 'package:appcaixaauto/src/model/carrinho_model.dart';
+import 'package:appcaixaauto/src/model/produto_model.dart';
 import 'package:appcaixaauto/src/page/carrinho_compra.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -13,10 +17,8 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-
   /// LISTA DE PRODUTOS
   List<Item> products = [
-
     Item(
       itemId: "1",
       carrinhoId: "10",
@@ -66,7 +68,6 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
       appBar: AppBarApp(),
 
       drawer: DrawerApp(),
@@ -82,9 +83,7 @@ class _DashboardPageState extends State<DashboardPage> {
           onPressed: () {
             Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => const CarrinhoCompra(),
-              ),
+              MaterialPageRoute(builder: (context) => const CarrinhoCompra()),
             );
           },
 
@@ -97,14 +96,12 @@ class _DashboardPageState extends State<DashboardPage> {
 
       body: SafeArea(
         child: SingleChildScrollView(
-
           padding: const EdgeInsets.all(20),
 
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
 
             children: [
-
               /// ESPAÇO
               const SizedBox(height: 20),
 
@@ -145,7 +142,6 @@ class _DashboardPageState extends State<DashboardPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
 
         children: [
-
           const Text(
             "Saldo disponível",
             style: TextStyle(color: Colors.white70),
@@ -174,7 +170,6 @@ class _DashboardPageState extends State<DashboardPage> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
 
       children: [
-
         _actionItem(Icons.bolt, "Pix"),
 
         _actionItem(Icons.qr_code_scanner, "Pagar"),
@@ -189,7 +184,6 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _actionItem(IconData icon, String label) {
     return Column(
       children: [
-
         Container(
           height: 60,
           width: 60,
@@ -199,59 +193,79 @@ class _DashboardPageState extends State<DashboardPage> {
             borderRadius: BorderRadius.circular(15),
           ),
 
-          child: Icon(
-            icon,
-            color: Colors.black,
-          ),
+          child: Icon(icon, color: Colors.black),
         ),
 
         const SizedBox(height: 8),
 
         Text(
           label,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 12,
-          ),
+          style: const TextStyle(color: Colors.white70, fontSize: 12),
         ),
       ],
     );
   }
 
-  /// =========================
-  /// LISTA DE PRODUTOS
-  /// =========================
+  Future<List<ProdutoModel>> getDestaques() async {
+    try {
+      final response = await http.get(
+        Uri.parse("http://192.168.86.7:8080/produtos/home"),
+        headers: {"Content-Type": "application/json"},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        List produtosJson = data["destaques"];
+
+        return produtosJson.map((e) => ProdutoModel.fromJson(e)).toList();
+      } else {
+        throw Exception("Erro ao buscar produtos");
+      }
+    } catch (e) {
+      throw Exception(e.toString());
+    }
+  }
+
   Widget _buildProducts() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return FutureBuilder<List<ProdutoModel>>(
+      future: getDestaques(),
 
-      children: [
+      builder: (context, snapshot) {
 
-        const Text(
-          "Produtos em destaque",
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
 
-        const SizedBox(height: 20),
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              snapshot.error.toString(),
+            ),
+          );
+        }
 
-        ListView.builder(
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(
+            child: Text(
+              "Nenhum produto encontrado",
+            ),
+          );
+        }
+
+        final produtos = snapshot.data!;
+
+        return ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-
-          itemCount: products.length,
+          itemCount: produtos.length,
 
           itemBuilder: (context, index) {
-
-            final product = products[index];
-
-            return productCard(product);
+            return productCard(produtos[index]);
           },
-        ),
-      ],
+        );
+      },
     );
-  }
-}
+  }}

@@ -20,6 +20,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _cpfController = TextEditingController();
   final TextEditingController _senhaController = TextEditingController();
+  bool isLogged = false;
 
   final cpfMask = MaskTextInputFormatter(
     mask: '###.###.###-##',
@@ -31,6 +32,29 @@ class _LoginPageState extends State<LoginPage> {
   void dispose() {
     _cpfController.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    bool i = await UserPreferences.isLogged();
+
+    setState(() {
+      isLogged = i;
+    });
+
+    if (isLogged) {
+      Future.microtask(() {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => DashboardPage()),
+        );
+      });
+    }
   }
 
   @override
@@ -170,10 +194,7 @@ class _LoginPageState extends State<LoginPage> {
       final response = await http.post(
         Uri.parse("http://192.168.86.7:8080/auth/login"),
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "cpf": cpfLimpo,
-          "senha": _senhaController.text,
-        }),
+        body: jsonEncode({"cpf": cpfLimpo, "senha": _senhaController.text}),
       );
 
       if (response.statusCode == 200) {
