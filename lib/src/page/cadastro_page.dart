@@ -1,7 +1,11 @@
 import 'dart:convert';
 
+import 'package:appcaixaauto/src/Widget/app_bar_app.dart';
+import 'package:appcaixaauto/src/Widget/drawer_app.dart';
+import 'package:appcaixaauto/src/page/login.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_multi_formatter/formatters/masked_input_formatter.dart';
 import 'package:http/http.dart' as http;
 
 class CadastroPage extends StatefulWidget {
@@ -77,6 +81,10 @@ class _CadastroPageState extends State<CadastroPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Cadastro realizado com sucesso")),
           );
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => LoginPage()),
+          );
         } else {
           print(response.body);
 
@@ -94,204 +102,211 @@ class _CadastroPageState extends State<CadastroPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Cadastro")),
+      backgroundColor: const Color(0xFF0F172A),
 
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
 
-        child: Form(
-          key: formKey,
+          child: Form(
+            key: formKey,
 
-          child: Column(
-            children: [
-              TextFormField(
-                controller: nomeController,
-                decoration: const InputDecoration(
-                  labelText: "Nome",
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return "Informe o nome";
-                  }
-                  return null;
-                },
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 30),
 
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: sobrenomeController,
-                decoration: const InputDecoration(
-                  labelText: "Sobrenome",
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return "Informe o sobrenome";
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: "Email",
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return "Informe o email";
-                  }
-
-                  if (!value.contains("@")) {
-                    return "Email inválido";
-                  }
-
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: senhaController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: "Senha",
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return "Informe a senha";
-                  }
-
-                  if (value.length < 6) {
-                    return "Senha deve ter no mínimo 6 caracteres";
-                  }
-
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: cpfController,
-                keyboardType: TextInputType.number,
-                maxLength: 11,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(
-                  labelText: "CPF",
-                  border: OutlineInputBorder(),
-                  counterText: "",
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return "Informe o CPF";
-                  }
-
-                  if (value.length != 11) {
-                    return "CPF deve conter 11 dígitos";
-                  }
-                  if (!validarCpf(cpfController.text)) {
-                    return "Cpf precisa ser valido";
-                  }
-
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: telefoneController,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: "Telefone",
-                  border: OutlineInputBorder(),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: dataNascimentoController,
-                keyboardType: TextInputType.datetime,
-                inputFormatters: [
-                  // SÓ NÚMEROS
-                  FilteringTextInputFormatter.digitsOnly,
-
-                  // MÁSCARA DD/MM/YYYY
-                  TextInputFormatter.withFunction((oldValue, newValue) {
-                    String text = newValue.text;
-
-                    if (text.length > 8) {
-                      return oldValue;
-                    }
-
-                    String newText = "";
-
-                    for (int i = 0; i < text.length; i++) {
-                      if (i == 2 || i == 4) {
-                        newText += "/";
-                      }
-
-                      newText += text[i];
-                    }
-
-                    return TextEditingValue(
-                      text: newText,
-                      selection: TextSelection.collapsed(
-                        offset: newText.length,
-                      ),
-                    );
-                  }),
-                ],
-
-                decoration: const InputDecoration(
-                  labelText: "Data de nascimento",
-                  hintText: "13/05/2008",
-                  border: OutlineInputBorder(),
+                const Text(
+                  "Cadastro",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
 
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return "Informe a data";
-                  }
+                const SizedBox(height: 10),
 
-                  if (!RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(value)) {
-                    return "Data inválida";
-                  }
-
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 24),
-
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (formKey.currentState!.validate()) {
-                      cadastrar();
-                    }
-                  },
-
-                  child: const Text("Cadastrar"),
+                const Text(
+                  "Crie sua conta para continuar",
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 40),
+
+                _buildTextField(
+                  label: "NOME",
+                  hint: "Digite seu nome",
+                  controller: nomeController,
+                  icon: Icons.person_outline,
+                ),
+
+                const SizedBox(height: 15),
+
+                _buildTextField(
+                  label: "SOBRENOME",
+                  hint: "Digite seu sobrenome",
+                  controller: sobrenomeController,
+                  icon: Icons.badge_outlined,
+                ),
+
+                const SizedBox(height: 15),
+
+                _buildTextField(
+                  label: "EMAIL",
+                  hint: "email@email.com",
+                  controller: emailController,
+                  icon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                ),
+
+                const SizedBox(height: 15),
+
+                _buildTextField(
+                  label: "SENHA",
+                  hint: "********",
+                  controller: senhaController,
+                  icon: Icons.lock_outline,
+                  isPassword: true,
+                ),
+
+                const SizedBox(height: 15),
+
+                _buildTextField(
+                  label: "CPF",
+                  hint: "000.000.000-00",
+                  controller: cpfController,
+                  icon: Icons.credit_card,
+                  keyboardType: TextInputType.number,
+                ),
+
+                const SizedBox(height: 15),
+
+                _buildTextField(
+                  label: "TELEFONE",
+                  hint: "(75) 99999-9999",
+                  controller: telefoneController,
+                  icon: Icons.phone_outlined,
+                  keyboardType: TextInputType.phone,
+                ),
+
+                const SizedBox(height: 15),
+
+                _buildTextField(
+                  label: "DATA DE NASCIMENTO",
+                  hint: "13/05/2008",
+                  controller: dataNascimentoController,
+                  icon: Icons.calendar_month_outlined,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [MaskedInputFormatter('00/00/0000')],
+                ),
+              ],
+            ),
           ),
         ),
       ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton(
+                onPressed: () {
+                  if (formKey.currentState!.validate()) {
+                    cadastrar();
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF22D3EE),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Cadastrar",
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text(
+                "Já possui uma conta? Entrar",
+                style: TextStyle(
+                  color: Color(0xFF22D3EE),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required String label,
+    required String hint,
+    required TextEditingController controller,
+    required IconData icon,
+    bool isPassword = false,
+    TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        TextFormField(
+          controller: controller,
+          obscureText: isPassword,
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          style: const TextStyle(color: Colors.white),
+
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: const Color(0xFF1E293B),
+            hintText: hint,
+            hintStyle: const TextStyle(color: Colors.white30),
+
+            prefixIcon: Icon(icon, color: const Color(0xFF22D3EE)),
+
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: BorderSide.none,
+            ),
+
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(15),
+              borderSide: const BorderSide(color: Color(0xFF22D3EE), width: 1),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

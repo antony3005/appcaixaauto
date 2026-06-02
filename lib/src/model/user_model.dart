@@ -10,7 +10,7 @@ class UserModel {
   final String foto;
   final bool emailVerificado;
   final String role;
-   String? token;
+  String? token;
 
   UserModel({
     required this.userId,
@@ -29,18 +29,20 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      userId: json['userId'].toString() ?? '',
+      userId: json['userId']?.toString() ?? '',
       nome: json['nome'] ?? '',
-      nomeCompleto: json['nome_completo'] ?? '',
+      nomeCompleto: json['sobrenome'] ?? '',
       email: json['email'] ?? '',
       senha: json['senha'] ?? '',
       cpf: json['cpf'] ?? '',
       telefone: json['telefone'] ?? '',
       dataNascimento: json['data_nascimento'] ?? '',
-      foto: json['foto'] ?? '',
-      emailVerificado: json['emailVerificado'] ?? '',
+      foto: json['foto'] ?? json['fotoPerfil'] ?? '',
+      emailVerificado: json['emailVerificado'] == true ||
+          json['emailVerificado'] == "true" ||
+          json['emailVerificado'] == 1,
       role: json['role'] ?? '',
-      token: json['token'] ?? '',
+      token: json['token'],
     );
   }
 
@@ -48,7 +50,7 @@ class UserModel {
     return {
       'userId': userId,
       'nome': nome,
-      'nome_completo': nomeCompleto,
+      'sobrenome': nomeCompleto,
       'email': email,
       'senha': senha,
       'cpf': cpf,
@@ -89,4 +91,5 @@ class UserModel {
       role: role ?? this.role,
       token: token ?? this.token,
     );
-  }}
+  }
+}

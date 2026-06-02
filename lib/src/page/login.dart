@@ -2,12 +2,14 @@ import 'dart:convert';
 
 import 'package:appcaixaauto/src/model/user_model.dart';
 import 'package:appcaixaauto/src/page/cadastro_page.dart';
+import 'package:appcaixaauto/src/page/reculperar_senha/recovery_password.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 import '../model/UserPreferences.dart';
+import '../service/AuthService.dart';
 import 'dashboard_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -107,17 +109,61 @@ class _LoginPageState extends State<LoginPage> {
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton(
-                  onPressed: () {
-                    String cpfLimpo = cpfMask.getUnmaskedText();
+                    onPressed: () async {
+                      if (_cpfController.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Informe o CPF"),
+                          ),
+                        );
+                        return;
+                      }
 
-                    if (!validarCpf(cpfLimpo)) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("CPF inválido")),
-                      );
-                    } else {
-                      login();
-                    }
-                  },
+                      if (_senhaController.text.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Informe a senha"),
+                          ),
+                        );
+                        return;
+                      }
+
+                      String cpfLimpo = cpfMask.getUnmaskedText();
+
+                      if (!validarCpf(cpfLimpo)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("CPF inválido"),
+                          ),
+                        );
+                        return;
+                      }
+
+                      try {
+                        await AuthService().login(
+                          cpfLimpo,
+                          _senhaController.text,
+                        );
+
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => DashboardPage(),
+                          ),
+                        );
+
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            backgroundColor: Colors.red.shade700,
+                            behavior: SnackBarBehavior.floating,
+                            content: Text(
+                              e.toString().replaceFirst("Exception: ", ""),
+                            ),
+                          ),
+                        );
+                      }
+                    },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF22D3EE),
                     shape: RoundedRectangleBorder(
@@ -138,17 +184,45 @@ class _LoginPageState extends State<LoginPage> {
               const SizedBox(height: 10),
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => CadastroPage()),
-                    );
-                  },
-                  child: const Text(
-                    "Não possui conta?",
-                    style: TextStyle(color: Color(0xFF22D3EE), fontSize: 16),
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.max,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => RecoveryPassword(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        "Esqueceu a sua senha?",
+                        style: TextStyle(
+                          color: Color(0xFF22D3EE),
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => CadastroPage(),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        "Não possui conta?",
+                        style: TextStyle(
+                          color: Color(0xFF22D3EE),
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -187,38 +261,6 @@ class _LoginPageState extends State<LoginPage> {
     return cpf.endsWith('$digito1$digito2');
   }
 
-  Future<void> login() async {
-    try {
-      String cpfLimpo = _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '');
-
-      final response = await http.post(
-        Uri.parse("http://192.168.86.7:8080/auth/login"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"cpf": cpfLimpo, "senha": _senhaController.text}),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        final tokem = data["Token"];
-        final user = data["user"];
-
-        UserModel use = UserModel.fromJson(user);
-        use.token = tokem;
-
-        UserPreferences.saveUser(use);
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => DashboardPage()),
-        );
-      } else {
-        print(response.body);
-      }
-    } catch (e) {
-      print(e);
-    }
-  }
 
   Widget _buildTextField({
     required String label,
@@ -246,7 +288,6 @@ class _LoginPageState extends State<LoginPage> {
           obscureText: isPassword,
           keyboardType: keyboardType,
           inputFormatters: inputFormatters,
-          // Aplica os formatadores aqui
           style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
             filled: true,
