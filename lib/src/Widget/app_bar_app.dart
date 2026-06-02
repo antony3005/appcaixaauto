@@ -38,6 +38,7 @@ class _AppBarAppState extends State<AppBarApp> {
     if (userModel == null) {
       return AppBar(
         backgroundColor: const Color(0xFF0F172A),
+        iconTheme: const IconThemeData(color: Color(0xFF22D3EE)),
         title: const Text("Carregando..."),
       );
     }
@@ -45,7 +46,7 @@ class _AppBarAppState extends State<AppBarApp> {
     return AppBar(
       backgroundColor: const Color(0xFF0F172A),
       elevation: 0,
-      iconTheme: IconThemeData(color: Color(0xFF22D3EE)),
+      iconTheme: const IconThemeData(color: Color(0xFF22D3EE)),
       title: Row(
         children: [
           userModel == null
