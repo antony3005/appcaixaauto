@@ -18,6 +18,7 @@ class _DrawerAppState extends State<DrawerApp> {
   @override
   Widget build(BuildContext context) {
     return Drawer(
+      backgroundColor: const Color(0xFF10223E),
       child: ListView(
         children: [
           DrawerHeader(

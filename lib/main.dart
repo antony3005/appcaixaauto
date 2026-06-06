@@ -66,7 +66,7 @@ class _MyAppState extends State<MyApp> {
       title: '24/7',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: LoginPage(),
+      home: DashboardPage(),
     );
   }
 }

@@ -201,7 +201,7 @@ class _LoginPageState extends State<LoginPage> {
                         "Esqueceu a sua senha?",
                         style: TextStyle(
                           color: Color(0xFF22D3EE),
-                          fontSize: 16,
+                          fontSize: 14,
                         ),
                       ),
                     ),
@@ -218,7 +218,7 @@ class _LoginPageState extends State<LoginPage> {
                         "Não possui conta?",
                         style: TextStyle(
                           color: Color(0xFF22D3EE),
-                          fontSize: 16,
+                          fontSize: 14,
                         ),
                       ),
                     ),
