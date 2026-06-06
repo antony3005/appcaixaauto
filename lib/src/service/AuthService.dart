@@ -1,13 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 import '../model/UserPreferences.dart';
 import '../model/user_model.dart';
 
 class AuthService {
-  final String URL = "http://192.168.86.9:8080";
+  final URL = dotenv.env['API_URL'];
 
   Future<void> login(String cpf, String senha) async {
     try {
@@ -42,7 +43,7 @@ class AuthService {
   Future<void> genareteCode(String cpf) async {
     try {
       final response = await http.post(
-        Uri.parse("http://192.168.86.9:8080/user/recuperar"),
+        Uri.parse("$URL/user/recuperar"),
         headers: {"Content-Type": "application/json"},
 
         body: jsonEncode({"cpf": cpf}),
@@ -61,6 +62,39 @@ class AuthService {
     }
   }
 
+  Future<String?> cadastrar({
+    required String nome,
+    required String sobrenome,
+    required String email,
+    required String senha,
+    required String cpf,
+    required String telefone,
+    required String dataNascimento,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse("$URL/auth/register"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "nome": nome.trim(),
+          "sobrenome": sobrenome.trim(),
+          "email": email.trim(),
+          "senha": senha,
+          "cpf": cpf.replaceAll(RegExp(r'\D'), ''),
+          "telefone": telefone,
+          "dataNascimento": dataNascimento,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return null; // sucesso
+      }
+
+      return response.body; // erro da API
+    } catch (e) {
+      return e.toString();
+    }
+  }
   Future<String> verifyCode(String cpf, String code) async {
     try {
       final response = await http.post(
@@ -86,7 +120,7 @@ class AuthService {
   Future<void> alterarSenha(String cpf, String token, String senha) async {
     try {
       final response = await http.post(
-        Uri.parse("http://192.168.86.9:8080/user/redefinir-senha"),
+        Uri.parse("$URL/user/redefinir-senha"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"cpf": cpf, "token": token, "novaSenha": senha}),
       );
@@ -99,6 +133,41 @@ class AuthService {
       throw Exception("Sem conexão com a internet");
     } on FormatException {
       throw Exception("Resposta inválida do servidor");
+    }
+  }
+
+  Future<bool> enviarCodigoEmail(String email, String nome) async {
+    try {
+      final response = await http.post(
+        Uri.parse("$URL/auth/send-code"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"email": email, "nome": nome}),
+      );
+      print(response.body);
+      if (response.statusCode == 200) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> validarCodigoEmail(
+    String email,
+    String code,
+    String nome,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse("$URL/auth/validate-code"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"email": email, "code": code, "nome": nome}),
+      );
+
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
     }
   }
 }

@@ -1,13 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 import '../model/UserPreferences.dart';
 import '../model/user_model.dart';
 
 class UserService {
-  final String url = "http://192.168.86.9:8080";
+  final url = dotenv.env['API_URL'];
 
   Future<UserModel?> getCurrentUser() async {
     return await UserPreferences.getUser();
@@ -24,11 +25,12 @@ class UserService {
   }
 
   Future<void> enviarFoto({required String userId, required File file}) async {
+
     final request = http.MultipartRequest(
       'POST',
       Uri.parse('$url/user/foto?id=$userId'),
     );
-
+    print("URL: ${request.url}");
     request.files.add(await http.MultipartFile.fromPath('file', file.path));
 
     final response = await request.send();
@@ -73,7 +75,7 @@ class UserService {
       throw Exception("Usuário não encontrado");
     }
 
-    final response = await http.get(Uri.parse('$url/user?id=${user.userId}'));
+    final response = await http.get(Uri.parse('$url/user/${user.userId}'));
 
     if (response.statusCode != 200) {
       throw Exception("Erro ao atualizar usuário");

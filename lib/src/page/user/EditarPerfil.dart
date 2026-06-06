@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../service/UserService.dart';
@@ -29,6 +30,8 @@ class EditarPerfil extends StatefulWidget {
 
 class _EditarPerfilState extends State<EditarPerfil> {
   final ImagePicker picker = ImagePicker();
+
+  final url = dotenv.env['API_URL'];
 
   late TextEditingController nomeController;
   late TextEditingController sobrenomeController;
@@ -128,9 +131,7 @@ class _EditarPerfilState extends State<EditarPerfil> {
     if (fotoSelecionada != null) {
       imagem = FileImage(fotoSelecionada!);
     } else if (widget.fotoAtual != null && widget.fotoAtual!.isNotEmpty) {
-      imagem = NetworkImage(
-        'http://192.168.86.9:8080/files/${widget.fotoAtual}',
-      );
+      imagem = NetworkImage('$url/files/${widget.fotoAtual}');
     }
 
     return Scaffold(

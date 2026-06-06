@@ -1,8 +1,8 @@
 import 'package:appcaixaauto/src/model/user_model.dart';
 import 'package:appcaixaauto/src/service/UserService.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import '../../model/UserPreferences.dart';
 import 'EditarPerfil.dart';
 
 class UserPage extends StatefulWidget {
@@ -13,6 +13,8 @@ class UserPage extends StatefulWidget {
 }
 
 class _UserPageState extends State<UserPage> {
+  final url = dotenv.env['API_URL'];
+
   UserModel? user;
 
   Future<void> getUser() async {
@@ -45,7 +47,7 @@ class _UserPageState extends State<UserPage> {
             CircleAvatar(
               radius: 50,
               backgroundImage: NetworkImage(
-                'http://192.168.86.9:8080/files/${user!.foto}',
+                '$url/files/${user!.foto}',
               ),
             ),
 

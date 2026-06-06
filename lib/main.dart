@@ -1,12 +1,13 @@
 import 'package:app_links/app_links.dart';
 import 'package:appcaixaauto/src/page/carrinho_compra.dart';
-import 'package:appcaixaauto/src/page/dashboard_page.dart';
 import 'package:appcaixaauto/src/page/login.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
-void main() {
+Future<void> main() async {
+  await dotenv.load(fileName: ".env");
   runApp(const MyApp());
 }
 
@@ -27,7 +28,6 @@ class _MyAppState extends State<MyApp> {
   }
 
   void initDeepLink() async {
-
     final initialUri = await appLinks.getInitialLink();
 
     if (initialUri != null) {
@@ -48,7 +48,9 @@ class _MyAppState extends State<MyApp> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (navigatorKey.currentState != null) {
           navigatorKey.currentState!.push(
-            MaterialPageRoute(builder: (_) => CarrinhoCompra(session: sessionId)),
+            MaterialPageRoute(
+              builder: (_) => CarrinhoCompra(session: sessionId),
+            ),
           );
         } else {
           print("Erro: navigatorKey.currentState ainda é nulo!");
@@ -56,6 +58,7 @@ class _MyAppState extends State<MyApp> {
       });
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(

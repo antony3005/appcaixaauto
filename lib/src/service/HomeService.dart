@@ -1,16 +1,17 @@
 import 'dart:convert';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 import '../model/produto_model.dart';
 
 class HomeService {
-  final String URL = "http://192.168.86.9:8080/produtos";
+  final URL = dotenv.env['API_URL'];
 
   Future<List<ProdutoModel>> getDestaques() async {
     try {
       final response = await http.get(
-        Uri.parse('$URL/home'),
+        Uri.parse('$URL/produtos/home'),
         headers: {"Content-Type": "application/json"},
       );
 

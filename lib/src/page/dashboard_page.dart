@@ -330,7 +330,7 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
               child: produto.foto != null && produto.foto!.isNotEmpty
                   ? Image.network(
-                      "http://192.168.86.9:8080/files/${produto.foto}",
+                      "http://192.168.86.6:8080/files/${produto.foto}",
                       fit: BoxFit.cover,
                       width: double.infinity,
                       errorBuilder: (_, __, ___) => _productPlaceholder(),

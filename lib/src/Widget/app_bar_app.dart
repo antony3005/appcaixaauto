@@ -1,6 +1,6 @@
-import 'package:appcaixaauto/src/model/UserPreferences.dart';
 import 'package:appcaixaauto/src/model/user_model.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../service/UserService.dart';
 
@@ -15,6 +15,8 @@ class AppBarApp extends StatefulWidget implements PreferredSizeWidget {
 }
 
 class _AppBarAppState extends State<AppBarApp> {
+  final url = dotenv.env['API_URL'];
+
   UserModel? userModel;
 
   @override
@@ -58,9 +60,7 @@ class _AppBarAppState extends State<AppBarApp> {
                   radius: 18,
                   backgroundColor: const Color(0xFF22D3EE),
                   backgroundImage: userModel!.foto.isNotEmpty
-                      ? NetworkImage(
-                          'http://192.168.86.9:8080/files/${userModel!.foto}',
-                        )
+                      ? NetworkImage('$url/files/${userModel!.foto}')
                       : null,
                   child: userModel!.foto.isEmpty
                       ? const Icon(Icons.person, color: Colors.black)
