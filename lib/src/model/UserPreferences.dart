@@ -32,7 +32,6 @@ class UserPreferences {
     return UserModel.fromJson(userMap);
   }
 
-  // REMOVER USUÁRIO
   static Future<void> removeUser() async {
 
     final prefs = await SharedPreferences.getInstance();

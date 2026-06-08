@@ -18,7 +18,7 @@ Widget productCard(ProdutoModel produto) {
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
 
           child: Image.network(
-            'http://192.168.86.7:8080/files/${produto.foto}',
+            'http://192.168.86.7:8080/files/${produto.foto}.jpg',
 
             height: 180,
             width: double.infinity,
