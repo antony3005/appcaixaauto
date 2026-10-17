@@ -1,57 +1,20 @@
-import 'package:app_links/app_links.dart';
-import 'package:appcaixaauto/src/page/carrinho_compra.dart';
-import 'package:appcaixaauto/src/page/dashboard_page.dart';
-import 'package:appcaixaauto/src/page/login.dart';
 import 'package:flutter/material.dart';
 
-final navigatorKey = GlobalKey<NavigatorState>();
+import 'src/app.dart';
+import 'src/core/config/app_config.dart';
+import 'src/data/client_api_repository.dart';
+import 'src/data/session_store.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+Future<void> main() async {
+  await dotenv.load(fileName: '.env');
 
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
-
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  final AppLinks appLinks = AppLinks();
-
-  @override
-  void initState() {
-    super.initState();
-    initDeepLink();
-  }
-
-  void initDeepLink() {
-    appLinks.uriLinkStream.listen((Uri uri) {
-      print(uri);
-      print(uri.host);
-      print(uri.pathSegments);
-
-      if (uri.host == "session" && uri.pathSegments.isNotEmpty) {
-        final sessionId = uri.pathSegments.first;
-
-        print("SESSION -> $sessionId");
-
-        navigatorKey.currentState?.push(
-          MaterialPageRoute(builder: (_) => CarrinhoCompra(session: sessionId)),
-        );
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: navigatorKey,
-      title: 'Flutter Demo',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: DashboardPage(),
-    );
-  }
+  WidgetsFlutterBinding.ensureInitialized();
+  final config = AppConfig.fromEnvironment();
+  runApp(
+    App247Client(
+      repository: ClientApiRepository(config: config),
+      sessionStore: SecureSessionStore(),
+    ),
+  );
 }
