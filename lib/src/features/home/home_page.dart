@@ -4,201 +4,197 @@ import '../../core/theme/app_theme.dart';
 import '../../domain/models.dart';
 import '../../shared/app_widgets.dart';
 import '../../state/client_controller.dart';
+import '../../state/theme_controller.dart';
 import '../benefits/benefits_page.dart';
 import '../catalog/catalog_pages.dart';
 import '../purchases/purchases_page.dart';
 import '../qr/customer_identification_page.dart';
+import '../shell/client_shell.dart';
 
 class HomePage extends StatelessWidget {
-  const HomePage({required this.controller, required this.data, super.key});
+  const HomePage({
+    required this.controller,
+    required this.data,
+    super.key,
+    this.themeController,
+  });
 
   final ClientController controller;
   final ClientBootstrap data;
+  final ThemeController? themeController;
 
   @override
   Widget build(BuildContext context) {
     final loyaltyMode = _resolveLoyaltyMode(data);
-    final offers = data.products
-        .where((product) => product.isPromotion)
-        .toList();
+    final offers = data.capabilities.promotions
+        ? data.products.where((product) => product.isPromotion).toList()
+        : const <ProductSummary>[];
     final products = offers.isNotEmpty ? offers : data.products;
     final showLoyalty =
         data.capabilities.loyalty &&
         data.loyalty != null &&
         loyaltyMode != LoyaltyMode.none;
     final showQr = data.capabilities.identificationQr;
+    final showRewards = data.capabilities.benefits && data.capabilities.rewards;
+    final showCoupons = data.capabilities.benefits && data.capabilities.coupons;
+    final availableCoupons = data.coupons
+        .where((coupon) => coupon.status == CouponStatus.available)
+        .length;
 
     return Scaffold(
       body: SafeArea(
+        bottom: false,
         child: RefreshIndicator(
           onRefresh: controller.refresh,
           child: ListView(
             primary: false,
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+            padding: const EdgeInsets.only(bottom: AppSpacing.s8),
             children: [
-              _HomeHero(
-                data: data,
-                showLoyalty: showLoyalty,
-                loyaltyMode: loyaltyMode,
-                showQr: showQr,
-                onLoyaltyTap: data.capabilities.benefits
-                    ? () => controller.selectNavigation(2)
-                    : null,
-                onQrTap: () => _openQr(context),
-              ),
-              if (controller.errorMessage != null)
-                AppContent(
-                  child: Padding(
-                    padding: const EdgeInsets.only(
-                      top: AppSpacing.md,
-                      bottom: AppSpacing.md,
-                    ),
-                    child: _InlineWarning(message: controller.errorMessage!),
-                  ),
-                ),
-              const SizedBox(height: AppSpacing.lg),
-              const AppContent(child: SectionHeader(title: 'Acesso rápido')),
               AppContent(
-                child: Padding(
-                  padding: const EdgeInsets.only(
-                    top: AppSpacing.sm,
-                    bottom: AppSpacing.xl,
-                  ),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final width = (constraints.maxWidth - AppSpacing.sm) / 2;
-                      return Wrap(
-                        spacing: AppSpacing.sm,
-                        runSpacing: AppSpacing.sm,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: AppSpacing.s4),
+                    _Greeting(
+                      data: data,
+                      now: controller.clock(),
+                      onProfile: () => _openProfile(context),
+                    ),
+                    if (showLoyalty || showQr) ...[
+                      const SizedBox(height: AppSpacing.s5),
+                      _HeroPair(
+                        loyalty: showLoyalty
+                            ? PointsCard(
+                                key: const ValueKey('home-open-benefits'),
+                                label: loyaltyMode == LoyaltyMode.points
+                                    ? 'Meus pontos'
+                                    : 'Meu cashback',
+                                value: loyaltyMode == LoyaltyMode.points
+                                    ? points(data.loyalty?.points ?? 0)
+                                    : money(data.loyalty?.cashback ?? 0),
+                                unit: loyaltyMode == LoyaltyMode.points
+                                    ? 'pts'
+                                    : null,
+                                caption: _loyaltyCaption(
+                                  data.loyalty!,
+                                  loyaltyMode,
+                                ),
+                                onTap: data.capabilities.benefits
+                                    ? () => _openBenefits(
+                                        context,
+                                        BenefitsFocus.overview,
+                                      )
+                                    : null,
+                              )
+                            : null,
+                        qr: showQr
+                            ? QrTile(
+                                key: const ValueKey(
+                                  'open-customer-identification',
+                                ),
+                                onTap: () => _openQr(context),
+                              )
+                            : null,
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.s4),
+                    const Notice(message: terminalReminder),
+                    if (controller.errorMessage != null) ...[
+                      const SizedBox(height: AppSpacing.s3),
+                      Notice(
+                        tone: NoticeTone.warning,
+                        icon: Icons.info_outline_rounded,
+                        message: controller.errorMessage!,
+                        live: true,
+                      ),
+                    ],
+                    if (showRewards || showCoupons) ...[
+                      const SizedBox(height: AppSpacing.section),
+                      const SectionHeader(title: 'Benefícios'),
+                      ListGroup(
                         children: [
-                          _ShortcutTile(
-                            key: const ValueKey('home-open-purchases'),
-                            width: width,
-                            icon: Icons.receipt_long_rounded,
-                            label: 'Compras',
-                            helper: 'Seu histórico',
-                            onTap: () => controller.selectNavigation(1),
-                          ),
-                          if (data.capabilities.catalog)
-                            _ShortcutTile(
-                              key: const ValueKey('home-open-catalog'),
-                              width: width,
-                              icon: Icons.grid_view_rounded,
-                              label: 'Catálogo',
-                              helper: 'Produtos e preços',
-                              onTap: () => _openCatalog(context),
-                            ),
-                          if (data.capabilities.coupons)
-                            _ShortcutTile(
-                              key: const ValueKey('home-open-coupons'),
-                              width: width,
-                              icon: Icons.confirmation_number_rounded,
-                              label: 'Cupons',
-                              helper: 'Disponíveis para usar',
-                              premium: true,
-                              onTap: () =>
-                                  _openBenefits(context, BenefitsFocus.coupons),
-                            ),
-                          if (data.capabilities.rewards)
-                            _ShortcutTile(
+                          if (showRewards)
+                            AppListRow(
                               key: const ValueKey('home-open-rewards'),
-                              width: width,
-                              icon: Icons.redeem_rounded,
-                              label: 'Recompensas',
-                              helper: 'Troque seus pontos',
-                              premium: true,
+                              leading: const IconWell(
+                                icon: Icons.redeem_rounded,
+                                tone: WellTone.gold,
+                              ),
+                              title: 'Recompensas',
+                              subtitle: data.rewards.isEmpty
+                                  ? 'Nenhuma disponível agora'
+                                  : 'Troque seus pontos por descontos',
                               onTap: () =>
                                   _openBenefits(context, BenefitsFocus.rewards),
                             ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-              ),
-              if (data.capabilities.catalog && products.isNotEmpty) ...[
-                AppContent(
-                  child: SectionHeader(
-                    title: offers.isNotEmpty
-                        ? 'Ofertas para você'
-                        : 'No seu mercado',
-                    actionLabel: 'Ver catálogo',
-                    onAction: () => _openCatalog(context),
-                  ),
-                ),
-                SizedBox(
-                  height: MediaQuery.textScalerOf(
-                    context,
-                  ).scale(250).clamp(286, 336),
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.md,
-                      AppSpacing.sm,
-                      AppSpacing.md,
-                      AppSpacing.lg,
-                    ),
-                    itemCount: products.take(6).length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(width: AppSpacing.sm),
-                    itemBuilder: (context, index) {
-                      final product = products[index];
-                      final heroTag = 'home-product-${product.id}-$index';
-                      return SizedBox(
-                        width: 164,
-                        child: ProductCard(
-                          product: product,
-                          heroTag: heroTag,
-                          onTap: () => _openProduct(context, product, heroTag),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-              AppContent(
-                child: SectionHeader(
-                  title: 'Compras recentes',
-                  actionLabel: data.purchases.isEmpty ? null : 'Ver todas',
-                  onAction: () => controller.selectNavigation(1),
-                ),
-              ),
-              if (data.purchases.isEmpty)
-                const AppContent(
-                  child: EmptyState(
-                    icon: Icons.receipt_long_outlined,
-                    title: 'Seu histórico começa aqui',
-                    message:
-                        'Identifique-se no Terminal para salvar suas próximas compras.',
-                  ),
-                )
-              else
-                AppContent(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.sm),
-                    child: Column(
-                      children: [
-                        for (
-                          var index = 0;
-                          index < data.purchases.take(2).length;
-                          index++
-                        ) ...[
-                          PurchaseCard(
-                            purchase: data.purchases[index],
-                            onTap: () => openPurchaseDetail(
-                              context,
-                              data.purchases[index],
-                              controller,
+                          if (showCoupons)
+                            AppListRow(
+                              key: const ValueKey('home-open-coupons'),
+                              leading: const IconWell(
+                                icon: Icons.confirmation_number_outlined,
+                              ),
+                              title: 'Meus cupons',
+                              subtitle: availableCoupons == 0
+                                  ? 'Nenhum cupom para usar'
+                                  : '$availableCoupons ${availableCoupons == 1 ? 'disponível' : 'disponíveis'} no Terminal',
+                              onTap: () =>
+                                  _openBenefits(context, BenefitsFocus.coupons),
                             ),
-                          ),
-                          if (index + 1 < data.purchases.take(2).length)
-                            const SizedBox(height: AppSpacing.sm),
                         ],
-                      ],
-                    ),
-                  ),
+                      ),
+                    ],
+                    if (data.capabilities.catalog && products.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.section),
+                      SectionHeader(
+                        title: offers.isNotEmpty
+                            ? 'Promoções de hoje'
+                            : 'No seu mercado',
+                        trailing: TextButton(
+                          key: const ValueKey('home-open-catalog'),
+                          onPressed: () =>
+                              selectShellTab(controller, ShellTab.catalog),
+                          child: const Text('Ver catálogo'),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.s2),
+                    ],
+                  ],
                 ),
+              ),
+              if (data.capabilities.catalog && products.isNotEmpty)
+                _ProductStrip(
+                  products: products.take(6).toList(),
+                  onOpen: (product, heroTag) =>
+                      _openProduct(context, product, heroTag),
+                ),
+              AppContent(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: AppSpacing.section),
+                    SectionHeader(
+                      title: 'Compras recentes',
+                      actionLabel: data.purchases.isEmpty ? null : 'Ver todas',
+                      onAction: () =>
+                          selectShellTab(controller, ShellTab.purchases),
+                    ),
+                    if (data.purchases.isEmpty)
+                      const EmptyState(
+                        icon: Icons.receipt_long_outlined,
+                        title: 'Seu histórico começa aqui',
+                        message:
+                            'Identifique-se no Terminal para salvar suas próximas compras.',
+                      )
+                    else
+                      PurchaseList(
+                        purchases: data.purchases.take(2).toList(),
+                        onOpen: (purchase) =>
+                            openPurchaseDetail(context, purchase, controller),
+                      ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -217,25 +213,36 @@ class HomePage extends StatelessWidget {
     return LoyaltyMode.none;
   }
 
-  void _openQr(BuildContext context) => Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => CustomerIdentificationPage(
-        repository: controller.repository,
-        session: controller.session!,
-        loyaltyMode: data.loyaltyMode,
-      ),
-    ),
-  );
+  String _loyaltyCaption(LoyaltySummary summary, LoyaltyMode mode) {
+    if (mode == LoyaltyMode.points &&
+        summary.cashback != null &&
+        summary.cashback! > 0) {
+      return '${money(summary.cashback!)} em cashback';
+    }
+    if (summary.nextReward != null) {
+      return 'Próxima: ${summary.nextReward!.title}';
+    }
+    return 'Saldo disponível';
+  }
 
-  void _openCatalog(BuildContext context) => Navigator.of(context).push(
-    MaterialPageRoute<void>(
-      builder: (_) => CatalogPage(
-        data: data,
-        repository: controller.repository,
-        session: controller.session!,
+  void _openQr(BuildContext context) {
+    if (shellTabs(data).contains(ShellTab.qr)) {
+      selectShellTab(controller, ShellTab.qr);
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CustomerIdentificationPage(
+          repository: controller.repository,
+          session: controller.session!,
+          loyaltyMode: data.loyaltyMode,
+        ),
       ),
-    ),
-  );
+    );
+  }
+
+  void _openProfile(BuildContext context) =>
+      selectShellTab(controller, ShellTab.profile);
 
   void _openBenefits(BuildContext context, BenefitsFocus focus) =>
       Navigator.of(context).push(
@@ -256,163 +263,154 @@ class HomePage extends StatelessWidget {
   );
 }
 
-class _HomeHero extends StatelessWidget {
-  const _HomeHero({
+class _Greeting extends StatelessWidget {
+  const _Greeting({
     required this.data,
-    required this.showLoyalty,
-    required this.loyaltyMode,
-    required this.showQr,
-    required this.onLoyaltyTap,
-    required this.onQrTap,
+    required this.now,
+    required this.onProfile,
   });
-
   final ClientBootstrap data;
-  final bool showLoyalty;
-  final LoyaltyMode loyaltyMode;
-  final bool showQr;
-  final VoidCallback? onLoyaltyTap;
-  final VoidCallback onQrTap;
+  final DateTime now;
+  final VoidCallback onProfile;
 
   @override
   Widget build(BuildContext context) {
-    final onNavy = AppColors.darkText;
-    final mutedOnNavy = AppColors.darkMuted;
-    return Material(
-      color: AppColors.navy,
-      borderRadius: const BorderRadius.vertical(
-        bottom: Radius.circular(AppRadii.hero + AppSpacing.xs),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.lg,
-            AppSpacing.md,
-            AppSpacing.lg,
-          ),
+    final name = data.user.firstName.isEmpty ? 'cliente' : data.user.firstName;
+    return Row(
+      children: [
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text('${_greeting(now)}, $name', style: context.text.bodySmall),
+              const SizedBox(height: 2),
               Row(
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${_greeting()}, ${data.user.firstName.isEmpty ? 'cliente' : data.user.firstName}',
-                          style: Theme.of(
-                            context,
-                          ).textTheme.headlineSmall?.copyWith(color: onNavy),
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.sm,
-                            vertical: AppSpacing.xs,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.darkText.withValues(alpha: .10),
-                            borderRadius: BorderRadius.circular(AppRadii.pill),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.apartment_rounded,
-                                size: 17,
-                                color: context.semantic.gold,
-                              ),
-                              const SizedBox(width: AppSpacing.xs),
-                              Flexible(
-                                child: Text(
-                                  data.condominium?.name ??
-                                      'Condomínio não informado',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.labelLarge
-                                      ?.copyWith(color: mutedOnNavy),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                  ExcludeSemantics(
+                    child: Icon(
+                      Icons.apartment_rounded,
+                      size: AppSizes.iconMd,
+                      color: context.colors.primary,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.md),
-                  Semantics(
-                    label: 'Perfil de ${data.user.fullName}',
-                    image: true,
-                    child: Container(
-                      width: 52,
-                      height: 52,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.darkText.withValues(alpha: .12),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.darkText.withValues(alpha: .18),
-                        ),
-                      ),
-                      child: Text(
-                        data.user.firstName.isEmpty
-                            ? '24'
-                            : data.user.firstName.characters.first
-                                  .toUpperCase(),
-                        style: Theme.of(
-                          context,
-                        ).textTheme.titleMedium?.copyWith(color: onNavy),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      data.condominium?.name ?? 'Condomínio não informado',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
                 ],
               ),
-              if (showLoyalty || showQr) ...[
-                const SizedBox(height: AppSpacing.lg),
-                IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (showLoyalty)
-                        Expanded(
-                          flex: 5,
-                          child: _HeroAction(
-                            onTap: onLoyaltyTap,
-                            icon: Icons.stars_rounded,
-                            eyebrow: loyaltyMode == LoyaltyMode.points
-                                ? 'FIDELIDADE'
-                                : 'CASHBACK',
-                            title: loyaltyMode == LoyaltyMode.points
-                                ? '${data.loyalty?.points ?? 0} pts'
-                                : money(data.loyalty?.cashback ?? 0),
-                            caption: data.loyalty?.nextReward == null
-                                ? 'Saldo disponível'
-                                : 'Próxima: ${data.loyalty!.nextReward!.title}',
-                            premium: true,
-                          ),
-                        ),
-                      if (showLoyalty && showQr)
-                        const SizedBox(width: AppSpacing.sm),
-                      if (showQr)
-                        Expanded(
-                          flex: showLoyalty ? 4 : 1,
-                          child: _HeroAction(
-                            key: const ValueKey('open-customer-identification'),
-                            onTap: onQrTap,
-                            icon: Icons.qr_code_2_rounded,
-                            eyebrow: 'IDENTIFICAÇÃO',
-                            title: 'Meu QR',
-                            caption: 'Usar no Terminal',
-                          ),
-                        ),
-                    ],
+            ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.s3),
+        Semantics(
+          button: true,
+          label: 'Abrir perfil de ${data.user.fullName}',
+          excludeSemantics: true,
+          child: Material(
+            key: const ValueKey('home-open-profile'),
+            color: AppColors.navy,
+            shape: CircleBorder(
+              side: context.isDark
+                  ? BorderSide(color: context.colors.outline)
+                  : BorderSide.none,
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onProfile,
+              child: SizedBox.square(
+                dimension: 48,
+                child: Center(
+                  child: Text(
+                    data.user.firstName.isEmpty
+                        ? '24'
+                        : data.user.firstName.characters.first.toUpperCase(),
+                    style: context.text.titleMedium?.copyWith(
+                      color: AppColors.onNavy,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-              ],
-            ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Par de destaque: saldo dourado ao lado do tile navy do Meu QR.
+class _HeroPair extends StatelessWidget {
+  const _HeroPair({required this.loyalty, required this.qr});
+  final Widget? loyalty, qr;
+
+  @override
+  Widget build(BuildContext context) {
+    final stacked = MediaQuery.textScalerOf(context).scale(1) > 1.6;
+    if (loyalty == null || qr == null || stacked) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ?loyalty,
+          if (loyalty != null && qr != null)
+            const SizedBox(height: AppSpacing.s3),
+          ?qr,
+        ],
+      );
+    }
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(flex: 16, child: loyalty!),
+          const SizedBox(width: AppSpacing.s3),
+          Expanded(flex: 10, child: qr!),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProductStrip extends StatelessWidget {
+  const _ProductStrip({required this.products, required this.onOpen});
+  final List<ProductSummary> products;
+  final void Function(ProductSummary product, String heroTag) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
+    return SizedBox(
+      height: 252 * scale,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: AppSizes.contentMax),
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.gutter - AppSpacing.s1,
+            ),
+            itemCount: products.length,
+            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.s2),
+            itemBuilder: (context, index) {
+              final product = products[index];
+              final heroTag = 'home-product-${product.id}-$index';
+              return SizedBox(
+                width: 160,
+                child: ProductCard(
+                  product: product,
+                  heroTag: heroTag,
+                  onTap: () => onOpen(product, heroTag),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -420,211 +418,8 @@ class _HomeHero extends StatelessWidget {
   }
 }
 
-class _HeroAction extends StatelessWidget {
-  const _HeroAction({
-    required this.onTap,
-    required this.icon,
-    required this.eyebrow,
-    required this.title,
-    required this.caption,
-    super.key,
-    this.premium = false,
-  });
-
-  final VoidCallback? onTap;
-  final IconData icon;
-  final String eyebrow, title, caption;
-  final bool premium;
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: premium
-        ? context.semantic.goldContainer
-        : AppColors.darkText.withValues(alpha: .10),
-    borderRadius: BorderRadius.circular(AppRadii.card),
-    clipBehavior: Clip.antiAlias,
-    child: InkWell(
-      onTap: onTap,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 154),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    icon,
-                    color: premium ? context.semantic.gold : AppColors.darkText,
-                  ),
-                  const Spacer(),
-                  if (onTap != null)
-                    Icon(
-                      Icons.arrow_outward_rounded,
-                      size: 18,
-                      color: premium
-                          ? context.semantic.onGold
-                          : AppColors.darkMuted,
-                    ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Text(
-                eyebrow,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: premium
-                      ? context.semantic.onGold.withValues(alpha: .72)
-                      : AppColors.darkMuted,
-                  letterSpacing: .8,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: premium ? context.semantic.onGold : AppColors.darkText,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                caption,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: premium
-                      ? context.semantic.onGold.withValues(alpha: .72)
-                      : AppColors.darkMuted,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-class _ShortcutTile extends StatelessWidget {
-  const _ShortcutTile({
-    required this.width,
-    required this.icon,
-    required this.label,
-    required this.helper,
-    required this.onTap,
-    super.key,
-    this.premium = false,
-  });
-
-  final double width;
-  final IconData icon;
-  final String label, helper;
-  final VoidCallback onTap;
-  final bool premium;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    width: width,
-    child: Material(
-      color: premium
-          ? context.semantic.goldContainer
-          : Theme.of(context).colorScheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadii.card),
-        side: BorderSide(
-          color: premium
-              ? context.semantic.gold.withValues(alpha: .22)
-              : Theme.of(context).colorScheme.outline,
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: premium
-                          ? context.semantic.gold.withValues(alpha: .12)
-                          : Theme.of(context).colorScheme.primaryContainer,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      icon,
-                      size: 21,
-                      color: premium
-                          ? context.semantic.gold
-                          : Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                  const Spacer(),
-                  Icon(
-                    Icons.arrow_outward_rounded,
-                    size: 18,
-                    color: context.semantic.muted,
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: AppSpacing.xxs),
-              Text(
-                helper,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: context.semantic.muted),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-class _InlineWarning extends StatelessWidget {
-  const _InlineWarning({required this.message});
-  final String message;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(AppSpacing.sm),
-    decoration: BoxDecoration(
-      color: context.semantic.warningContainer,
-      borderRadius: BorderRadius.circular(AppRadii.control),
-    ),
-    child: Row(
-      children: [
-        Icon(Icons.info_outline_rounded, color: context.semantic.warning),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(child: Text(message)),
-      ],
-    ),
-  );
-}
-
-String _greeting() {
-  final hour = DateTime.now().hour;
+String _greeting(DateTime now) {
+  final hour = now.hour;
   if (hour < 12) return 'Bom dia';
   if (hour < 18) return 'Boa tarde';
   return 'Boa noite';

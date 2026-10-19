@@ -6,12 +6,33 @@ import '../../domain/models.dart';
 import '../../shared/app_widgets.dart';
 import '../../state/client_controller.dart';
 import '../../state/theme_controller.dart';
-import '../benefits/benefits_page.dart';
+import '../catalog/catalog_pages.dart';
 import '../home/home_page.dart';
 import '../profile/profile_page.dart';
 import '../purchases/purchases_page.dart';
+import '../qr/customer_identification_page.dart';
 
-class ClientShell extends StatelessWidget {
+/// As quatro abas do App Cliente. Catálogo e Meu QR dependem das
+/// capacidades liberadas para o condomínio.
+enum ShellTab { home, catalog, qr, purchases, profile }
+
+List<ShellTab> shellTabs(ClientBootstrap data) => [
+  ShellTab.home,
+  if (data.capabilities.catalog) ShellTab.catalog,
+  if (data.capabilities.identificationQr) ShellTab.qr,
+  ShellTab.purchases,
+  ShellTab.profile,
+];
+
+/// Seleciona uma aba pelo nome; ignora abas desligadas.
+void selectShellTab(ClientController controller, ShellTab tab) {
+  final data = controller.data;
+  if (data == null) return;
+  final index = shellTabs(data).indexOf(tab);
+  if (index >= 0) controller.selectNavigation(index);
+}
+
+class ClientShell extends StatefulWidget {
   const ClientShell({
     required this.controller,
     super.key,
@@ -19,6 +40,15 @@ class ClientShell extends StatelessWidget {
   });
   final ClientController controller;
   final ThemeController? themeController;
+
+  @override
+  State<ClientShell> createState() => _ClientShellState();
+}
+
+class _ClientShellState extends State<ClientShell> {
+  final _visited = <ShellTab>{ShellTab.home};
+
+  ClientController get controller => widget.controller;
 
   @override
   Widget build(BuildContext context) {
@@ -29,10 +59,13 @@ class ClientShell extends StatelessWidget {
       return const Scaffold(
         body: SafeArea(
           child: AppContent(
-            child: Padding(
-              padding: EdgeInsets.only(top: 72),
-              child: LoadingSection(rows: 5),
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.gutter,
+              AppSpacing.s10,
+              AppSpacing.gutter,
+              0,
             ),
+            child: LoadingSection(rows: 5),
           ),
         ),
       );
@@ -53,78 +86,76 @@ class ClientShell extends StatelessWidget {
     }
     final data = controller.data;
     if (data == null) return const SizedBox.shrink();
-    final destinations = <_Destination>[
-      _Destination(
-        'Início',
-        Icons.home_outlined,
-        Icons.home_rounded,
-        HomePage(controller: controller, data: data),
-      ),
-      _Destination(
-        'Compras',
-        Icons.receipt_long_outlined,
-        Icons.receipt_long_rounded,
-        PurchasesPage(controller: controller, data: data),
-      ),
-      if (data.capabilities.benefits)
-        _Destination(
-          'Benefícios',
-          Icons.stars_outlined,
-          Icons.stars_rounded,
-          BenefitsPage(controller: controller, data: data),
-        ),
-      _Destination(
-        'Perfil',
-        Icons.person_outline,
-        Icons.person_rounded,
-        ProfilePage(
-          controller: controller,
-          data: data,
-          themeController: themeController,
-        ),
-      ),
-    ];
-    final selected = controller.navigationIndex.clamp(
-      0,
-      destinations.length - 1,
-    );
+    final tabs = shellTabs(data);
+    final selected = controller.navigationIndex.clamp(0, tabs.length - 1);
+    _visited.add(tabs[selected]);
     return Scaffold(
       body: IndexedStack(
         index: selected,
-        children: destinations.map((item) => item.page).toList(),
+        children: [
+          for (final tab in tabs)
+            _visited.contains(tab) ? _page(tab, data) : const SizedBox.shrink(),
+        ],
       ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.fromLTRB(
-          AppSpacing.sm,
-          AppSpacing.xs,
-          AppSpacing.sm,
-          AppSpacing.xs,
-        ),
-        child: Material(
-          color: Theme.of(context).colorScheme.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadii.card),
-            side: BorderSide(color: Theme.of(context).colorScheme.outline),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: NavigationBar(
-            selectedIndex: selected,
-            onDestinationSelected: controller.selectNavigation,
-            destinations: destinations
-                .map(
-                  (item) => NavigationDestination(
-                    icon: Icon(item.icon),
-                    selectedIcon: Icon(item.selectedIcon),
-                    label: item.label,
-                  ),
-                )
-                .toList(),
-          ),
-        ),
+      bottomNavigationBar: AppNavigationBar(
+        selectedIndex: selected,
+        onSelected: controller.selectNavigation,
+        items: [for (final tab in tabs) _item(tab)],
       ),
     );
   }
+
+  Widget _page(ShellTab tab, ClientBootstrap data) => switch (tab) {
+    ShellTab.home => HomePage(
+      controller: controller,
+      data: data,
+      themeController: widget.themeController,
+    ),
+    ShellTab.catalog => CatalogPage(
+      data: data,
+      repository: controller.repository,
+      session: controller.session!,
+    ),
+    ShellTab.qr => CustomerIdentificationPage(
+      repository: controller.repository,
+      session: controller.session!,
+      loyaltyMode: data.loyaltyMode,
+    ),
+    ShellTab.purchases => PurchasesPage(controller: controller, data: data),
+    ShellTab.profile => ProfilePage(
+      controller: controller,
+      data: data,
+      themeController: widget.themeController,
+    ),
+  };
+
+  AppNavItem _item(ShellTab tab) => switch (tab) {
+    ShellTab.home => const AppNavItem(
+      label: 'Início',
+      icon: Icons.home_outlined,
+      selectedIcon: Icons.home_rounded,
+    ),
+    ShellTab.catalog => const AppNavItem(
+      label: 'Catálogo',
+      icon: Icons.grid_view_outlined,
+      selectedIcon: Icons.grid_view_rounded,
+    ),
+    ShellTab.qr => const AppNavItem(
+      label: 'Meu QR',
+      icon: Icons.qr_code_2_outlined,
+      selectedIcon: Icons.qr_code_2_rounded,
+    ),
+    ShellTab.purchases => const AppNavItem(
+      label: 'Compras',
+      icon: Icons.receipt_long_outlined,
+      selectedIcon: Icons.receipt_long_rounded,
+    ),
+    ShellTab.profile => const AppNavItem(
+      label: 'Perfil',
+      icon: Icons.person_outline_rounded,
+      selectedIcon: Icons.person_rounded,
+    ),
+  };
 }
 
 class _TenantLinkRequiredPage extends StatefulWidget {
@@ -170,71 +201,59 @@ class _TenantLinkRequiredPageState extends State<_TenantLinkRequiredPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('Vincular condomínio'),
-      actions: [
-        IconButton(
-          tooltip: 'Sair da conta',
-          onPressed: controller.logout,
-          icon: const Icon(Icons.logout_rounded),
-        ),
-      ],
-    ),
-    body: SafeArea(
-      top: false,
-      child: AppContent(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+  Widget build(BuildContext context) {
+    final busy = controller.tenantLinkInProgress;
+    return Scaffold(
+      appBar: AppTopBar(
+        title: 'Vincular condomínio',
+        showBack: false,
+        actions: [
+          AppIconButton(
+            tooltip: 'Sair da conta',
+            onPressed: controller.logout,
+            icon: Icons.logout_rounded,
+          ),
+        ],
+      ),
+      body: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          child: AppContent(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.gutter,
+              AppSpacing.s2,
+              AppSpacing.gutter,
+              AppSpacing.s8,
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary,
-                    borderRadius: BorderRadius.circular(AppRadii.hero),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.apartment_rounded,
-                        size: 48,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      Text(
-                        'Vincule seu condomínio',
-                        style: Theme.of(context).textTheme.headlineMedium
-                            ?.copyWith(
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'Cole o código enviado pelo administrador para liberar sua experiência no App247.',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onPrimary.withValues(alpha: .78),
-                        ),
-                      ),
-                    ],
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconWell(
+                    icon: Icons.apartment_rounded,
+                    tone: WellTone.primary,
+                    size: 56,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xl),
+                const SizedBox(height: AppSpacing.s5),
                 Text(
-                  'Código de convite',
-                  style: Theme.of(context).textTheme.titleSmall,
+                  'Vincule seu condomínio',
+                  style: context.text.headlineSmall,
                 ),
-                const SizedBox(height: AppSpacing.xs),
+                const SizedBox(height: AppSpacing.s2),
+                Text(
+                  'Cole o código de convite enviado pelo administrador para liberar sua experiência no 24/7.',
+                  style: context.text.bodyMedium?.copyWith(
+                    color: context.semantic.muted,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.s8),
                 TextField(
                   key: const ValueKey('tenant-invitation-token'),
                   controller: _invitationController,
-                  enabled: !controller.tenantLinkInProgress,
+                  enabled: !busy,
                   autocorrect: false,
                   enableSuggestions: false,
                   textCapitalization: TextCapitalization.none,
@@ -243,83 +262,71 @@ class _TenantLinkRequiredPageState extends State<_TenantLinkRequiredPage> {
                   onChanged: (_) => controller.clearTenantLinkError(),
                   onSubmitted: (_) => _link(),
                   decoration: InputDecoration(
+                    labelText: 'Código de convite',
                     hintText: 'Cole o convite recebido',
                     prefixIcon: const Icon(Icons.link_rounded),
+                    counterText: '',
+                    enabledBorder: controller.tenantLinkError == null
+                        ? null
+                        : UnderlineInputBorder(
+                            borderSide: BorderSide(
+                              color: context.colors.error,
+                              width: 2,
+                            ),
+                          ),
                     suffixIcon: IconButton(
                       tooltip: 'Colar convite',
-                      onPressed: controller.tenantLinkInProgress
-                          ? null
-                          : _pasteInvitation,
-                      icon: const Icon(Icons.content_paste_rounded),
+                      onPressed: busy ? null : _pasteInvitation,
+                      icon: const Icon(
+                        Icons.content_paste_rounded,
+                        size: AppSizes.iconMd,
+                      ),
                     ),
                   ),
                 ),
                 if (controller.tenantLinkError != null) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: AppSpacing.s2),
                   Semantics(
                     liveRegion: true,
                     child: Text(
                       controller.tenantLinkError!,
                       key: const ValueKey('tenant-link-error'),
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.error,
+                      style: context.text.bodySmall?.copyWith(
+                        color: context.colors.error,
                       ),
                     ),
                   ),
                 ],
-                const SizedBox(height: AppSpacing.md),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: controller.tenantLinkInProgress
+                const SizedBox(height: AppSpacing.s6),
+                PrimaryButton(
+                  key: const ValueKey('tenant-link-submit'),
+                  label: 'VINCULAR CONTA',
+                  loadingLabel: 'VINCULANDO...',
+                  icon: Icons.apartment_rounded,
+                  loading: busy,
+                  onPressed: _link,
+                ),
+                const SizedBox(height: AppSpacing.s3),
+                SecondaryButton(
+                  label: 'COLAR CÓDIGO',
+                  icon: Icons.content_paste_rounded,
+                  onPressed: busy ? null : _pasteInvitation,
+                ),
+                const SizedBox(height: AppSpacing.s4),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: controller.tenantLinkRefreshInProgress || busy
                         ? null
-                        : _pasteInvitation,
-                    icon: const Icon(Icons.content_paste_rounded),
-                    label: const Text('COLAR CÓDIGO'),
+                        : controller.refresh,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('JÁ FUI VINCULADO, ATUALIZAR'),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    key: const ValueKey('tenant-link-submit'),
-                    onPressed: controller.tenantLinkInProgress ? null : _link,
-                    icon: controller.tenantLinkInProgress
-                        ? const SizedBox.square(
-                            dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.apartment_rounded),
-                    label: Text(
-                      controller.tenantLinkInProgress
-                          ? 'VINCULANDO...'
-                          : 'VINCULAR CONTA',
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                TextButton.icon(
-                  onPressed:
-                      controller.tenantLinkRefreshInProgress ||
-                          controller.tenantLinkInProgress
-                      ? null
-                      : controller.refresh,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('JÁ FUI VINCULADO, ATUALIZAR'),
                 ),
               ],
             ),
           ),
         ),
       ),
-    ),
-  );
-}
-
-class _Destination {
-  const _Destination(this.label, this.icon, this.selectedIcon, this.page);
-  final String label;
-  final IconData icon, selectedIcon;
-  final Widget page;
+    );
+  }
 }

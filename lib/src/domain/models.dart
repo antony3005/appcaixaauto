@@ -97,6 +97,19 @@ class ClientCapabilities {
         purchaseSupport: json['suporte'] == true,
       );
 
+  static const all = ClientCapabilities(
+    catalog: true,
+    promotions: true,
+    identificationQr: true,
+    loyalty: true,
+    points: true,
+    cashback: true,
+    rewards: true,
+    coupons: true,
+    preferences: true,
+    purchaseSupport: true,
+  );
+
   final bool catalog,
       promotions,
       identificationQr,

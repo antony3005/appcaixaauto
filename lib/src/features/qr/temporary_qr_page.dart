@@ -16,6 +16,7 @@ class TemporaryQrPage extends StatefulWidget {
     required this.instruction,
     required this.loadToken,
     this.benefit,
+    this.benefitDetail,
   });
 
   factory TemporaryQrPage.coupon({
@@ -26,15 +27,16 @@ class TemporaryQrPage extends StatefulWidget {
     repository: repository,
     session: session,
     title: 'Use no Terminal',
-    benefit: '${coupon.title}\nCompra mínima: ${money(coupon.minimumPurchase)}',
-    instruction: 'Mostre este QR Code ao leitor do Terminal.',
+    benefit: coupon.title,
+    benefitDetail: 'Compra mínima: ${money(coupon.minimumPurchase)}',
+    instruction: 'Mostre este QR ao leitor do Terminal antes de pagar.',
     loadToken: () => repository.createCouponToken(session, coupon.id),
   );
 
   final ClientRepository repository;
   final AuthSession session;
   final String title, instruction;
-  final String? benefit;
+  final String? benefit, benefitDetail;
   final Future<TemporaryQrToken> Function() loadToken;
 
   @override
@@ -105,97 +107,157 @@ class _TemporaryQrPageState extends State<TemporaryQrPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.title)),
-    body: SafeArea(
-      child: AppContent(
+  Widget build(BuildContext context) {
+    final valid = token != null && !expired;
+    return Scaffold(
+      appBar: AppTopBar(title: widget.title),
+      body: SafeArea(
+        top: false,
         child: SingleChildScrollView(
-          child: Column(
-            children: [
-              if (widget.benefit != null) ...[
+          child: AppContent(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.gutter,
+              AppSpacing.s2,
+              AppSpacing.gutter,
+              AppSpacing.s8,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (widget.benefit != null) ...[
+                  Notice(
+                    tone: NoticeTone.gold,
+                    icon: Icons.confirmation_number_outlined,
+                    title: widget.benefit,
+                    message: widget.benefitDetail ?? '',
+                  ),
+                  const SizedBox(height: AppSpacing.s5),
+                ],
                 Text(
-                  widget.benefit!,
+                  widget.instruction,
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-              ],
-              Text(
-                widget.instruction,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: SizedBox.square(
-                    dimension: 250,
-                    child: Center(child: _qrContent(context)),
+                  style: context.text.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              if (token != null && !expired)
-                Semantics(
-                  liveRegion: true,
-                  label: 'Código expira em ${_countdown(remaining)}',
-                  child: Text(
-                    'Expira em ${_countdown(remaining)}',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.titleMedium?.copyWith(color: AppColors.fresh),
-                  ),
-                ),
-              if (token != null && expired)
-                Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    'Código expirado',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.titleMedium?.copyWith(color: AppColors.coral),
-                  ),
-                ),
-              if (error != null)
-                Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    error!,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.error,
+                const SizedBox(height: AppSpacing.s4),
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSpacing.s5),
+                    decoration: BoxDecoration(
+                      color: AppColors.qrPaper,
+                      borderRadius: BorderRadius.circular(AppRadii.lg),
+                      boxShadow: context.semantic.raisedShadow,
+                      border: Border.all(color: context.colors.outline),
+                    ),
+                    child: Column(
+                      children: [
+                        SizedBox.square(
+                          dimension: 220,
+                          child: Center(child: _qrContent(context)),
+                        ),
+                        const SizedBox(height: AppSpacing.s3),
+                        _status(context),
+                      ],
                     ),
                   ),
                 ),
-              const SizedBox(height: AppSpacing.lg),
-              if (!loading && (expired || error != null))
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: generate,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Gerar novo código'),
+                if (error != null) ...[
+                  const SizedBox(height: AppSpacing.s4),
+                  Notice(
+                    tone: NoticeTone.error,
+                    icon: Icons.error_outline_rounded,
+                    message: error!,
+                    live: true,
                   ),
+                ],
+                if (!loading && !valid) ...[
+                  const SizedBox(height: AppSpacing.s6),
+                  PrimaryButton(
+                    navy: true,
+                    label: 'GERAR NOVO CÓDIGO',
+                    icon: Icons.refresh_rounded,
+                    onPressed: generate,
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.s4),
+                const Notice(
+                  icon: Icons.shield_outlined,
+                  message:
+                      'O código é temporário e validado pelo servidor. Ele não contém seu CPF, senha ou saldo.',
                 ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                'O código é temporário, opaco e validado pelo backend. Ele não contém seu CPF, senha ou saldo.',
-                textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: AppColors.muted),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
+
+  Widget _status(BuildContext context) {
+    const muted = Color(0xFF607389);
+    const ink = Color(0xFF10243B);
+    final base = context.text.bodySmall?.copyWith(
+      color: muted,
+      fontWeight: FontWeight.w600,
+    );
+    final (Widget text, Color dot) = loading
+        ? (Text('Gerando código...', style: base), muted)
+        : token != null && !expired
+        ? (
+            Text.rich(
+              TextSpan(
+                text: 'Expira em ',
+                children: [
+                  TextSpan(
+                    text: _countdown(remaining),
+                    style: context.text.titleMedium?.copyWith(
+                      color: ink,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              style: base,
+            ),
+            const Color(0xFFE8860C),
+          )
+        : token != null
+        ? (
+            Text(
+              'Código expirado',
+              style: base?.copyWith(color: const Color(0xFFBA1A1A)),
+            ),
+            const Color(0xFFBA1A1A),
+          )
+        : (Text('Código indisponível', style: base), muted);
+    return Semantics(
+      liveRegion: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Flexible(child: text),
+        ],
+      ),
+    );
+  }
 
   Widget _qrContent(BuildContext context) {
     if (loading) {
-      return const CircularProgressIndicator();
+      return const SizedBox.square(
+        dimension: 28,
+        child: CircularProgressIndicator(
+          strokeWidth: 2.5,
+          color: AppColors.navy,
+          backgroundColor: Color(0xFFEEF3F8),
+        ),
+      );
     }
     if (token != null && !expired) {
       return Semantics(
@@ -204,21 +266,27 @@ class _TemporaryQrPageState extends State<TemporaryQrPage> {
         child: QrImageView(
           data: token!.value,
           version: QrVersions.auto,
+          padding: EdgeInsets.zero,
+          backgroundColor: AppColors.qrPaper,
           eyeStyle: const QrEyeStyle(
             eyeShape: QrEyeShape.square,
-            color: AppColors.navyDark,
+            color: AppColors.qrInk,
           ),
           dataModuleStyle: const QrDataModuleStyle(
             dataModuleShape: QrDataModuleShape.square,
-            color: AppColors.navyDark,
+            color: AppColors.qrInk,
           ),
         ),
       );
     }
-    return Icon(
-      error == null ? Icons.timer_off_outlined : Icons.qr_code_2_rounded,
-      size: 72,
-      color: error == null ? AppColors.coral : AppColors.muted,
+    return ExcludeSemantics(
+      child: Icon(
+        error == null ? Icons.timer_off_outlined : Icons.qr_code_2_rounded,
+        size: 72,
+        color: error == null
+            ? const Color(0xFFBA1A1A)
+            : const Color(0xFF607389),
+      ),
     );
   }
 

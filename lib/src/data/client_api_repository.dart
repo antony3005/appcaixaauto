@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:http/http.dart' as http;
 
@@ -8,19 +9,17 @@ import '../domain/client_registration.dart';
 import '../domain/models.dart';
 import 'client_repository.dart';
 
-class ClientApiRepository
-    implements
-        ClientRepository,
-        ClientFeatureRepository,
-        SessionExpirationAware {
+class ClientApiRepository implements ClientRepository, SessionExpirationAware {
   ClientApiRepository({
     required AppConfig config,
     http.Client? client,
     Duration requestTimeout = const Duration(seconds: 15),
   }) : _baseUrl = config.apiBaseUrl.replaceFirst(RegExp(r'/$'), ''),
+       _enableAllFeatures = config.enableAllFeatures,
        _client = client ?? http.Client(),
        _requestTimeout = requestTimeout;
   final String _baseUrl;
+  final bool _enableAllFeatures;
   final http.Client _client;
   final Duration _requestTimeout;
   SessionExpiredHandler? _sessionExpiredHandler;
@@ -231,15 +230,17 @@ class ClientApiRepository
     final userJson = bootstrap['user'];
     final condominiumJson = bootstrap['condominio'];
     final featuresJson = bootstrap['features'];
-    final capabilities = featuresJson is Map
+    final capabilities = _enableAllFeatures
+        ? ClientCapabilities.all
+        : featuresJson is Map
         ? ClientCapabilities.fromJson(Map<String, dynamic>.from(featuresJson))
         : const ClientCapabilities();
     final results = await Future.wait<Object?>([
       loadPurchasePage(session),
-      if (capabilities.catalog) loadCatalog(session, size: 20),
-      if (capabilities.loyalty) loadLoyalty(session),
-      if (capabilities.rewards) loadRewards(session),
-      if (capabilities.coupons) loadCoupons(session),
+      if (capabilities.catalog) _optional(loadCatalog(session, size: 20)),
+      if (capabilities.loyalty) _optional(loadLoyalty(session)),
+      if (capabilities.rewards) _optional(loadRewards(session)),
+      if (capabilities.coupons) _optional(loadCoupons(session)),
     ]);
     final purchases = results.whereType<PageResult<PurchaseSummary>>().first;
     return ClientBootstrap(
@@ -271,9 +272,16 @@ class ClientApiRepository
     );
   }
 
-  @override
-  Future<List<PurchaseSummary>> loadPurchases(AuthSession session) async {
-    return (await loadPurchasePage(session, size: 50)).content;
+  /// Um recurso opcional que falha não derruba o Início: a tela dele mostra
+  /// o próprio estado vazio ou de erro. Sessão expirada continua subindo.
+  Future<T?> _optional<T>(Future<T> request) async {
+    try {
+      return await request;
+    } on UnauthorizedException {
+      rethrow;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<Map<String, dynamic>> _get(String path, AuthSession session) async {
@@ -293,7 +301,11 @@ class ClientApiRepository
     }
   }
 
-  Future<Map<String, dynamic>> _post(String path, AuthSession session) async {
+  Future<Map<String, dynamic>> _post(
+    String path,
+    AuthSession session, {
+    String Function(int status, String? code)? errorMessage,
+  }) async {
     try {
       final response = await _client
           .post(
@@ -302,7 +314,7 @@ class ClientApiRepository
           )
           .timeout(_requestTimeout);
       await _expireSessionIfNeeded(response);
-      return _successfulBody(response);
+      return _successfulBody(response, errorMessage: errorMessage);
     } on TimeoutException {
       throw const RequestTimeoutException();
     } on http.ClientException {
@@ -466,17 +478,59 @@ class ClientApiRepository
     }
   }
 
-  Map<String, dynamic> _successfulBody(http.Response response) {
-    final body = _decode(response);
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      final code = body['code']?.toString();
-      throw AppException(
-        _apiMessage(response.statusCode, code),
-        code: code,
-        statusCode: response.statusCode,
+  Map<String, dynamic> _successfulBody(
+    http.Response response, {
+    String Function(int status, String? code)? errorMessage,
+  }) {
+    final stopwatch = Stopwatch()..start();
+    final status = response.statusCode;
+
+    void audit(
+      String event, {
+      String? code,
+      Object? exception,
+      StackTrace? stackTrace,
+    }) {
+      developer.log(
+        '[API] $event | '
+        'status=$status | '
+        'code=${code ?? "N/A"} | '
+        'durationMs=${stopwatch.elapsedMilliseconds}',
+        name: 'api.audit',
+        error: exception,
+        stackTrace: stackTrace,
       );
     }
-    return body;
+
+    try {
+      final body = _decode(response);
+
+      if (status < 200 || status >= 300) {
+        final code = body['code']?.toString();
+
+        audit('HTTP_ERROR', code: code);
+
+        throw AppException(
+          (errorMessage ?? _apiMessage)(status, code),
+          code: code,
+          statusCode: status,
+        );
+      }
+
+      audit('HTTP_SUCCESS');
+      return body;
+    } on AppException {
+      rethrow;
+    } catch (exception, stackTrace) {
+      audit(
+        'RESPONSE_PROCESSING_ERROR',
+        exception: exception,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    } finally {
+      stopwatch.stop();
+    }
   }
 
   Map<String, dynamic> _decode(http.Response response) {
@@ -501,7 +555,25 @@ class ClientApiRepository
     return 'Não foi possível concluir a solicitação.';
   }
 
+  /// Mensagem padrão para as rotas do App Cliente.
   String _apiMessage(int status, String? code) {
+    if (status == 401) return 'Sua sessão expirou. Entre novamente.';
+    if (code == 'TENANT_LINK_REQUIRED' || code == 'CONDOMINIUM_REQUIRED') {
+      return 'Sua conta ainda não está vinculada a um condomínio.';
+    }
+    if (status == 403) {
+      return 'Este recurso não está liberado para sua conta.';
+    }
+    if (status == 404 || status == 405 || status == 501) {
+      return 'Este recurso ainda não está disponível no seu condomínio.';
+    }
+    if (status >= 500) {
+      return 'Nosso serviço está indisponível no momento. Tente novamente.';
+    }
+    return 'Não foi possível carregar as informações. Tente novamente.';
+  }
+
+  String _qrMessage(int status, String? code) {
     if (status == 401) return 'Sua sessão expirou. Entre novamente.';
     if (code == 'TENANT_LINK_REQUIRED' || code == 'CONDOMINIUM_REQUIRED') {
       return 'Sua conta ainda não está vinculada a um condomínio.';
@@ -722,7 +794,11 @@ class ClientApiRepository
   Future<CustomerIdentificationToken> createIdentificationToken(
     AuthSession session,
   ) async {
-    final json = await _post('/app-cliente/identificacao-tokens', session);
+    final json = await _post(
+      '/app-cliente/identificacao-tokens',
+      session,
+      errorMessage: _qrMessage,
+    );
     try {
       return CustomerIdentificationToken.fromJson(json);
     } on FormatException {
@@ -737,14 +813,4 @@ class ClientApiRepository
   ) async => TemporaryQrToken.fromJson(
     await _post('/app-cliente/cupons/$couponId/tokens', session),
   );
-
-  @override
-  Future<ClientBootstrap> redeemReward(
-    AuthSession session,
-    String rewardId,
-  ) async {
-    final key = '${DateTime.now().microsecondsSinceEpoch}-$rewardId';
-    await redeemRewardWithKey(session, rewardId, key);
-    return loadBootstrap(session);
-  }
 }

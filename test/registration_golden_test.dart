@@ -30,6 +30,9 @@ void main() {
 
 class _VisualRepository implements ClientRepository {
   @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
+  @override
   Future<void> requestPasswordRecovery(String cpf) async => _unavailable();
 
   @override
@@ -70,10 +73,6 @@ class _VisualRepository implements ClientRepository {
       _unavailable();
 
   @override
-  Future<List<PurchaseSummary>> loadPurchases(AuthSession session) async =>
-      _unavailable();
-
-  @override
   Future<CustomerIdentificationToken> createIdentificationToken(
     AuthSession session,
   ) async => _unavailable();
@@ -82,11 +81,5 @@ class _VisualRepository implements ClientRepository {
   Future<TemporaryQrToken> createCouponToken(
     AuthSession session,
     String couponId,
-  ) async => _unavailable();
-
-  @override
-  Future<ClientBootstrap> redeemReward(
-    AuthSession session,
-    String rewardId,
   ) async => _unavailable();
 }

@@ -29,10 +29,7 @@ class _PurchasesPageState extends State<PurchasesPage> {
   int nextPage = 0;
   String? error;
 
-  ClientFeatureRepository? get featureRepository =>
-      widget.controller.repository is ClientFeatureRepository
-      ? widget.controller.repository as ClientFeatureRepository
-      : null;
+  ClientRepository get repository => widget.controller.repository;
 
   @override
   void initState() {
@@ -53,9 +50,8 @@ class _PurchasesPageState extends State<PurchasesPage> {
   }
 
   Future<void> _load({bool reset = false}) async {
-    final repository = featureRepository;
     final session = widget.controller.session;
-    if (repository == null || session == null) {
+    if (session == null) {
       setState(() {
         loading = false;
         hasMore = false;
@@ -101,19 +97,21 @@ class _PurchasesPageState extends State<PurchasesPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [Text('Minhas compras'), Text('Histórico no Terminal')],
-      ),
+    appBar: const AppTopBar(
+      title: 'Minhas compras',
+      subtitle: 'Histórico no Terminal',
     ),
-    body: SafeArea(top: false, child: AppContent(child: _content())),
+    body: SafeArea(top: false, bottom: false, child: _content()),
   );
 
   Widget _content() {
-    if (loading && purchases.isEmpty) return const LoadingSection(rows: 5);
+    if (loading && purchases.isEmpty) {
+      return const AppContent(child: LoadingSection(rows: 5));
+    }
     if (error != null && purchases.isEmpty) {
-      return ErrorState(message: error!, onRetry: () => _load(reset: true));
+      return Center(
+        child: ErrorState(message: error!, onRetry: () => _load(reset: true)),
+      );
     }
     if (purchases.isEmpty) {
       return RefreshIndicator(
@@ -123,36 +121,69 @@ class _PurchasesPageState extends State<PurchasesPage> {
           slivers: [
             SliverFillRemaining(
               hasScrollBody: false,
-              child: EmptyState(
-                icon: Icons.receipt_long_outlined,
-                title: 'Nenhuma compra ainda',
-                message:
-                    'Quando você fizer uma compra identificada no Terminal, ela aparecerá aqui.',
+              child: AppContent(
+                child: EmptyState(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'Nenhuma compra ainda',
+                  message:
+                      'Quando você fizer uma compra identificada no Terminal, ela aparecerá aqui.',
+                ),
               ),
             ),
           ],
         ),
       );
     }
+    final rows = _monthRows(purchases);
     return RefreshIndicator(
       onRefresh: () => _load(reset: true),
-      child: ListView.separated(
+      child: ListView.builder(
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-        itemCount: purchases.length + 1 + (loadingMore ? 1 : 0),
-        separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+        padding: const EdgeInsets.only(bottom: AppSpacing.s8),
+        itemCount: rows.length + 1 + (loadingMore ? 1 : 0),
         itemBuilder: (context, index) {
-          if (index == 0) return _PurchasesIntro(purchases: purchases);
-          final purchaseIndex = index - 1;
-          if (purchaseIndex == purchases.length) {
-            return const LoadingTile(height: 72);
+          if (index == 0) {
+            return AppContent(child: _PurchasesSummary(purchases: purchases));
           }
-          final purchase = purchases[purchaseIndex];
-          return PurchaseCard(
-            purchase: purchase,
-            onTap: () =>
-                openPurchaseDetail(context, purchase, widget.controller),
+          final rowIndex = index - 1;
+          if (rowIndex == rows.length) {
+            return const AppContent(child: LoadingSection(rows: 1));
+          }
+          final row = rows[rowIndex];
+          return AppContent(
+            child: switch (row) {
+              _MonthHeader(:final label, :final total) => Padding(
+                padding: EdgeInsets.only(
+                  top: rowIndex == 0 ? AppSpacing.s4 : AppSpacing.section,
+                  bottom: AppSpacing.s1,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Semantics(
+                        header: true,
+                        child: Text(label, style: context.text.titleSmall),
+                      ),
+                    ),
+                    Text(money(total), style: context.text.bodySmall),
+                  ],
+                ),
+              ),
+              _PurchaseRowItem(:final purchase, :final first) => Column(
+                children: [
+                  if (!first) const Divider(),
+                  PurchaseCard(
+                    purchase: purchase,
+                    onTap: () => openPurchaseDetail(
+                      context,
+                      purchase,
+                      widget.controller,
+                    ),
+                  ),
+                ],
+              ),
+            },
           );
         },
       ),
@@ -160,8 +191,64 @@ class _PurchasesPageState extends State<PurchasesPage> {
   }
 }
 
-class _PurchasesIntro extends StatelessWidget {
-  const _PurchasesIntro({required this.purchases});
+sealed class _ListRow {
+  const _ListRow();
+}
+
+class _MonthHeader extends _ListRow {
+  const _MonthHeader(this.label, this.total);
+  final String label;
+  final double total;
+}
+
+class _PurchaseRowItem extends _ListRow {
+  const _PurchaseRowItem(this.purchase, {required this.first});
+  final PurchaseSummary purchase;
+  final bool first;
+}
+
+const _months = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+];
+
+List<_ListRow> _monthRows(List<PurchaseSummary> purchases) {
+  final rows = <_ListRow>[];
+  String? current;
+  var headerIndex = 0;
+  var total = 0.0;
+  for (final purchase in purchases) {
+    final date = purchase.createdAt.toLocal();
+    final label = '${_months[date.month - 1]} de ${date.year}';
+    if (label != current) {
+      if (current != null) rows[headerIndex] = _MonthHeader(current, total);
+      current = label;
+      total = 0;
+      headerIndex = rows.length;
+      rows.add(_MonthHeader(label, 0));
+      rows.add(_PurchaseRowItem(purchase, first: true));
+    } else {
+      rows.add(_PurchaseRowItem(purchase, first: false));
+    }
+    if (purchase.status == PurchaseStatus.approved) total += purchase.total;
+  }
+  if (current != null) rows[headerIndex] = _MonthHeader(current, total);
+  return rows;
+}
+
+/// Resumo do histórico carregado, sem caixa: número grande e uma etiqueta.
+class _PurchasesSummary extends StatelessWidget {
+  const _PurchasesSummary({required this.purchases});
   final List<PurchaseSummary> purchases;
 
   @override
@@ -173,55 +260,27 @@ class _PurchasesIntro extends StatelessWidget {
       0,
       (sum, purchase) => sum + purchase.total,
     );
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.navy,
-        borderRadius: BorderRadius.circular(AppRadii.hero),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.darkText.withValues(alpha: .10),
-              shape: BoxShape.circle,
+    return MergeSemantics(
+      child: Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.s2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Total aprovado', style: context.text.bodySmall),
+            const SizedBox(height: 2),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(money(total), style: context.text.displaySmall),
             ),
-            child: const Icon(
-              Icons.receipt_long_rounded,
-              color: AppColors.darkText,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+            const SizedBox(height: AppSpacing.s2),
+            AppTag(
+              tone: TagTone.success,
+              label:
                   '${approved.length} ${approved.length == 1 ? 'compra aprovada' : 'compras aprovadas'}',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.labelLarge?.copyWith(color: AppColors.darkMuted),
-                ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(
-                  money(total),
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: AppColors.darkText,
-                  ),
-                ),
-                Text(
-                  'Total do histórico carregado',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: AppColors.darkMuted),
-                ),
-              ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -258,10 +317,7 @@ class _PurchaseDetailPageState extends State<PurchaseDetailPage> {
   String? error;
   bool loading = true;
 
-  ClientFeatureRepository? get repository =>
-      widget.controller.repository is ClientFeatureRepository
-      ? widget.controller.repository as ClientFeatureRepository
-      : null;
+  ClientRepository get repository => widget.controller.repository;
 
   @override
   void initState() {
@@ -270,9 +326,8 @@ class _PurchaseDetailPageState extends State<PurchaseDetailPage> {
   }
 
   Future<void> load() async {
-    final api = repository;
     final session = widget.controller.session;
-    if (api == null || session == null) {
+    if (session == null) {
       setState(() {
         loading = false;
         error = 'Detalhes indisponíveis nesta sessão.';
@@ -284,7 +339,7 @@ class _PurchaseDetailPageState extends State<PurchaseDetailPage> {
       error = null;
     });
     try {
-      final result = await api.loadPurchase(session, widget.purchase.id);
+      final result = await repository.loadPurchase(session, widget.purchase.id);
       if (mounted) setState(() => detail = result);
     } on AppException catch (exception) {
       if (mounted) setState(() => error = exception.message);
@@ -297,7 +352,7 @@ class _PurchaseDetailPageState extends State<PurchaseDetailPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Detalhe da compra')),
+    appBar: const AppTopBar(title: 'Detalhe da compra'),
     body: SafeArea(
       top: false,
       child: loading
@@ -310,122 +365,106 @@ class _PurchaseDetailPageState extends State<PurchaseDetailPage> {
     ),
   );
 
-  Widget _detail(
-    BuildContext context,
-    PurchaseDetail value,
-  ) => SingleChildScrollView(
-    child: AppContent(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: value.status == PurchaseStatus.approved
-                  ? context.semantic.successContainer
-                  : Theme.of(context).colorScheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(AppRadii.card),
-            ),
-            child: Row(
-              children: [
-                StatusChip(status: value.status),
-                const Spacer(),
-                Text('#${_shortId(value.id)}'),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            '${localDate(value.createdAt)} às ${localTime(value.createdAt)}',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: context.semantic.muted),
-          ),
-          if (value.paidAt != null)
-            Text(
-              'Pago em ${localDate(value.paidAt!)} às ${localTime(value.paidAt!)}',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: context.semantic.muted),
-            ),
-          const SizedBox(height: AppSpacing.lg),
-          SectionHeader(
-            title: 'Produtos',
-            trailing: Text('${value.items.length} itens'),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          AppCard(
-            child: Column(
-              children: [
-                for (var index = 0; index < value.items.length; index++) ...[
-                  _PurchaseItemRow(item: value.items[index]),
-                  if (index != value.items.length - 1) const Divider(),
+  Widget _detail(BuildContext context, PurchaseDetail value) {
+    final approved = value.status == PurchaseStatus.approved;
+    return SingleChildScrollView(
+      child: AppContent(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.gutter,
+          AppSpacing.s2,
+          AppSpacing.gutter,
+          AppSpacing.s8,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (approved)
+              Notice(
+                tone: NoticeTone.success,
+                icon: Icons.check_circle_outline_rounded,
+                title: 'Compra aprovada',
+                message: _dates(value),
+              )
+            else
+              Row(
+                children: [
+                  StatusChip(status: value.status),
+                  const Spacer(),
+                  Text(_dates(value), style: context.text.bodySmall),
                 ],
-              ],
+              ),
+            const SizedBox(height: AppSpacing.s3),
+            Text(
+              'Pedido #${_shortId(value.id)}',
+              style: context.text.bodySmall,
             ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: AppSpacing.section),
+            SectionHeader(
+              title: 'Produtos',
+              trailing: Text(
+                '${value.items.length} ${value.items.length == 1 ? 'item' : 'itens'}',
+                style: context.text.bodySmall,
+              ),
+            ),
+            ListGroup(
               children: [
-                Text('Resumo', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: AppSpacing.sm),
-                _ValueRow(label: 'Subtotal', value: money(value.subtotal)),
-                if (value.discount > 0)
-                  _ValueRow(
-                    label: 'Descontos e promoções',
-                    value: '- ${money(value.discount)}',
-                    valueColor: context.semantic.success,
-                  ),
-                const Divider(),
-                _ValueRow(
-                  label: 'Total',
-                  value: money(value.total),
-                  strong: true,
-                ),
+                for (final item in value.items) _PurchaseItemRow(item: item),
               ],
             ),
-          ),
-          if (value.status == PurchaseStatus.approved) ...[
-            const SizedBox(height: AppSpacing.lg),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
+            const SizedBox(height: AppSpacing.s4),
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.s4),
+              decoration: BoxDecoration(
+                color: context.colors.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(AppRadii.md),
+              ),
+              child: OrderSummary(
+                subtotal: value.subtotal,
+                discount: value.discount,
+                total: value.total,
+              ),
+            ),
+            if (approved) ...[
+              const SizedBox(height: AppSpacing.s6),
+              PrimaryButton(
+                label: 'VER COMPROVANTE',
+                icon: Icons.receipt_long_outlined,
                 onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
+                  MaterialPageRoute<void>(
                     builder: (_) => ReceiptPage(
                       purchaseId: value.id,
                       controller: widget.controller,
                     ),
                   ),
                 ),
-                icon: const Icon(Icons.receipt_long_outlined),
-                label: const Text('Ver comprovante'),
               ),
-            ),
-          ],
-          if (widget.controller.data?.capabilities.purchaseSupport == true) ...[
-            const SizedBox(height: AppSpacing.sm),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
+            ],
+            if (widget.controller.data?.capabilities.purchaseSupport ==
+                true) ...[
+              const SizedBox(height: AppSpacing.s3),
+              SecondaryButton(
+                label: 'PRECISO DE AJUDA',
+                icon: Icons.support_agent_outlined,
                 onPressed: () => showPurchaseSupportSheet(
                   context,
                   purchaseId: value.id,
                   controller: widget.controller,
                 ),
-                icon: const Icon(Icons.support_agent_outlined),
-                label: const Text('Preciso de ajuda com esta compra'),
               ),
-            ),
+            ],
           ],
-          const SizedBox(height: AppSpacing.xl),
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
+
+  String _dates(PurchaseDetail value) {
+    final created =
+        '${localDate(value.createdAt)} às ${localTime(value.createdAt)}';
+    final paid = value.paidAt;
+    if (paid == null) return created;
+    return '$created · pago às ${localTime(paid)}';
+  }
 }
 
 class _PurchaseItemRow extends StatelessWidget {
@@ -433,48 +472,39 @@ class _PurchaseItemRow extends StatelessWidget {
   final PurchaseItem item;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainer,
-            borderRadius: BorderRadius.circular(AppRadii.small),
-          ),
-          child: const Icon(Icons.inventory_2_outlined),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(item.name, style: Theme.of(context).textTheme.titleSmall),
-              Text(
-                '${_quantity(item.quantity)} ${item.unit} • ${money(item.finalPrice)} un.',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: context.semantic.muted),
-              ),
-              if (item.discount > 0)
+  Widget build(BuildContext context) => MergeSemantics(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const IconWell(icon: Icons.inventory_2_outlined),
+          const SizedBox(width: AppSpacing.s3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.name, style: context.text.titleSmall),
+                const SizedBox(height: 2),
                 Text(
-                  'Economia de ${money(item.discount)}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.semantic.success,
-                  ),
+                  '${_quantity(item.quantity)} ${item.unit} · ${money(item.finalPrice)} un.',
+                  style: context.text.bodySmall,
                 ),
-            ],
+                if (item.discount > 0)
+                  Text(
+                    'Economia de ${money(item.discount)}',
+                    style: context.text.bodySmall?.copyWith(
+                      color: context.semantic.success,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Text(
-          money(item.subtotal),
-          style: Theme.of(context).textTheme.titleSmall,
-        ),
-      ],
+          const SizedBox(width: AppSpacing.s3),
+          Text(money(item.subtotal), style: context.text.titleSmall),
+        ],
+      ),
     ),
   );
 }
@@ -497,8 +527,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
   String? error;
   bool loading = true;
 
-  ClientFeatureRepository get repository =>
-      widget.controller.repository as ClientFeatureRepository;
+  ClientRepository get repository => widget.controller.repository;
 
   @override
   void initState() {
@@ -542,20 +571,20 @@ class _ReceiptPageState extends State<ReceiptPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('Comprovante'),
+    appBar: AppTopBar(
+      title: 'Comprovante',
       actions: [
-        IconButton(
+        AppIconButton(
           tooltip: 'Compartilhar comprovante',
           onPressed: receipt == null ? null : share,
-          icon: const Icon(Icons.share_outlined),
+          icon: Icons.share_outlined,
         ),
       ],
     ),
     body: SafeArea(
       top: false,
       child: loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: AppSpinner(label: 'Carregando comprovante'))
           : error != null
           ? Center(
               child: ErrorState(message: error!, onRetry: load),
@@ -563,24 +592,38 @@ class _ReceiptPageState extends State<ReceiptPage> {
           : Column(
               children: [
                 Expanded(
-                  child: InteractiveViewer(
-                    minScale: .8,
-                    maxScale: 4,
-                    child: Center(child: Image.memory(receipt!.bytes)),
+                  child: AppContent(
+                    child: Container(
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        color: context.colors.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(AppRadii.md),
+                      ),
+                      child: InteractiveViewer(
+                        minScale: .8,
+                        maxScale: 4,
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppSpacing.s4),
+                            child: Image.memory(
+                              receipt!.bytes,
+                              semanticLabel: 'Imagem do comprovante',
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: () => showReceiptSendSheet(
-                        context,
-                        purchaseId: widget.purchaseId,
-                        controller: widget.controller,
-                      ),
-                      icon: const Icon(Icons.send_outlined),
-                      label: const Text('Enviar comprovante'),
+                AppContent(
+                  padding: const EdgeInsets.all(AppSpacing.gutter),
+                  child: PrimaryButton(
+                    label: 'ENVIAR COMPROVANTE',
+                    icon: Icons.send_outlined,
+                    onPressed: () => showReceiptSendSheet(
+                      context,
+                      purchaseId: widget.purchaseId,
+                      controller: widget.controller,
                     ),
                   ),
                 ),
@@ -632,9 +675,7 @@ class _ReceiptSendSheetState extends State<_ReceiptSendSheet> {
       error = null;
     });
     try {
-      final repository =
-          widget.controller.repository as ClientFeatureRepository;
-      await repository.sendReceipt(
+      await widget.controller.repository.sendReceipt(
         widget.controller.session!,
         widget.purchaseId,
         channel: channel,
@@ -654,76 +695,85 @@ class _ReceiptSendSheetState extends State<_ReceiptSendSheet> {
   }
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.fromLTRB(
-      AppSpacing.lg,
-      AppSpacing.lg,
-      AppSpacing.lg,
-      MediaQuery.viewInsetsOf(context).bottom + AppSpacing.lg,
-    ),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Enviar comprovante',
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: AppSpacing.md),
-        SegmentedButton<String>(
-          segments: const [
-            ButtonSegment(
-              value: 'EMAIL',
-              label: Text('E-mail'),
-              icon: Icon(Icons.mail_outline),
-            ),
-            ButtonSegment(
-              value: 'WHATSAPP',
-              label: Text('WhatsApp'),
-              icon: Icon(Icons.chat_outlined),
-            ),
-          ],
-          selected: {channel},
-          onSelectionChanged: loading
-              ? null
-              : (value) {
-                  setState(() {
-                    channel = value.first;
-                    recipient.text = channel == 'EMAIL'
-                        ? widget.controller.data?.user.email ?? ''
-                        : widget.controller.data?.user.phone ?? '';
-                  });
-                },
-        ),
-        const SizedBox(height: AppSpacing.md),
-        TextField(
-          controller: recipient,
-          enabled: !loading,
-          keyboardType: channel == 'EMAIL'
-              ? TextInputType.emailAddress
-              : TextInputType.phone,
-          decoration: InputDecoration(
-            labelText: channel == 'EMAIL' ? 'E-mail' : 'WhatsApp',
-          ),
-        ),
-        if (error != null) ...[
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            error!,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.error,
-            ),
-          ),
+  Widget build(BuildContext context) => _SheetBody(
+    title: 'Enviar comprovante',
+    children: [
+      AppSegmented<String>(
+        label: 'Canal de envio',
+        segments: const [
+          ('EMAIL', 'E-mail', Icons.mail_outline_rounded),
+          ('WHATSAPP', 'WhatsApp', Icons.chat_outlined),
         ],
-        const SizedBox(height: AppSpacing.lg),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: loading ? null : send,
-            child: Text(loading ? 'Enviando...' : 'Enviar'),
+        selected: channel,
+        onChanged: loading
+            ? null
+            : (value) => setState(() {
+                channel = value;
+                recipient.text = channel == 'EMAIL'
+                    ? widget.controller.data?.user.email ?? ''
+                    : widget.controller.data?.user.phone ?? '';
+              }),
+      ),
+      const SizedBox(height: AppSpacing.s6),
+      TextField(
+        controller: recipient,
+        enabled: !loading,
+        keyboardType: channel == 'EMAIL'
+            ? TextInputType.emailAddress
+            : TextInputType.phone,
+        decoration: InputDecoration(
+          labelText: channel == 'EMAIL' ? 'E-mail' : 'WhatsApp',
+          hintText: channel == 'EMAIL'
+              ? 'cliente@email.com'
+              : '(75) 99999-9999',
+          prefixIcon: Icon(
+            channel == 'EMAIL'
+                ? Icons.mail_outline_rounded
+                : Icons.chat_outlined,
           ),
+          errorText: error,
         ),
-      ],
+      ),
+      const SizedBox(height: AppSpacing.s6),
+      PrimaryButton(
+        label: 'ENVIAR',
+        loadingLabel: 'ENVIANDO',
+        icon: Icons.send_outlined,
+        loading: loading,
+        onPressed: send,
+      ),
+    ],
+  );
+}
+
+/// Corpo padrão das folhas inferiores: título e conteúdo acima do teclado.
+class _SheetBody extends StatelessWidget {
+  const _SheetBody({required this.title, required this.children});
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+    padding: EdgeInsets.fromLTRB(
+      AppSpacing.gutter,
+      0,
+      AppSpacing.gutter,
+      MediaQuery.viewInsetsOf(context).bottom + AppSpacing.s6,
+    ),
+    child: AppContent(
+      padding: EdgeInsets.zero,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Semantics(
+            header: true,
+            child: Text(title, style: context.text.titleLarge),
+          ),
+          const SizedBox(height: AppSpacing.s5),
+          ...children,
+        ],
+      ),
     ),
   );
 }
@@ -777,14 +827,12 @@ class _PurchaseSupportSheetState extends State<_PurchaseSupportSheet> {
       error = null;
     });
     try {
-      final result =
-          await (widget.controller.repository as ClientFeatureRepository)
-              .requestPurchaseSupport(
-                widget.controller.session!,
-                widget.purchaseId,
-                category: category.text.trim(),
-                message: message.text.trim(),
-              );
+      final result = await widget.controller.repository.requestPurchaseSupport(
+        widget.controller.session!,
+        widget.purchaseId,
+        category: category.text.trim(),
+        message: message.text.trim(),
+      );
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.of(context).pop();
@@ -801,87 +849,54 @@ class _PurchaseSupportSheetState extends State<_PurchaseSupportSheet> {
   }
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.fromLTRB(
-      AppSpacing.lg,
-      AppSpacing.lg,
-      AppSpacing.lg,
-      MediaQuery.viewInsetsOf(context).bottom + AppSpacing.lg,
-    ),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Ajuda com a compra',
-          style: Theme.of(context).textTheme.titleLarge,
+  Widget build(BuildContext context) => _SheetBody(
+    title: 'Ajuda com a compra',
+    children: [
+      Text(
+        'Conte o que aconteceu. Você recebe um protocolo para acompanhar.',
+        style: context.text.bodyMedium?.copyWith(color: context.semantic.muted),
+      ),
+      const SizedBox(height: AppSpacing.s6),
+      TextField(
+        controller: category,
+        maxLength: 50,
+        enabled: !loading,
+        decoration: const InputDecoration(
+          labelText: 'Categoria ou assunto',
+          hintText: 'Ex.: cobrança, produto, comprovante',
+          prefixIcon: Icon(Icons.label_outline_rounded),
         ),
-        const SizedBox(height: AppSpacing.md),
-        TextField(
-          controller: category,
-          maxLength: 50,
-          decoration: const InputDecoration(labelText: 'Categoria ou assunto'),
+      ),
+      const SizedBox(height: AppSpacing.s3),
+      TextField(
+        controller: message,
+        maxLength: 2000,
+        minLines: 3,
+        maxLines: 6,
+        enabled: !loading,
+        decoration: const InputDecoration(
+          labelText: 'Mensagem',
+          hintText: 'Descreva o problema',
+          alignLabelWithHint: true,
         ),
-        const SizedBox(height: AppSpacing.sm),
-        TextField(
-          controller: message,
-          maxLength: 2000,
-          minLines: 4,
-          maxLines: 7,
-          decoration: const InputDecoration(labelText: 'Mensagem'),
-        ),
-        if (error != null)
-          Text(
-            error!,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.error,
-            ),
-          ),
-        const SizedBox(height: AppSpacing.md),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: loading ? null : send,
-            child: Text(loading ? 'Enviando...' : 'Enviar solicitação'),
-          ),
+      ),
+      if (error != null) ...[
+        const SizedBox(height: AppSpacing.s2),
+        Notice(
+          tone: NoticeTone.error,
+          icon: Icons.error_outline_rounded,
+          message: error!,
+          live: true,
         ),
       ],
-    ),
-  );
-}
-
-class _ValueRow extends StatelessWidget {
-  const _ValueRow({
-    required this.label,
-    required this.value,
-    this.strong = false,
-    this.valueColor,
-  });
-  final String label, value;
-  final bool strong;
-  final Color? valueColor;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-    child: Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: strong ? Theme.of(context).textTheme.titleMedium : null,
-          ),
-        ),
-        Text(
-          value,
-          style:
-              (strong
-                      ? Theme.of(context).textTheme.titleMedium
-                      : Theme.of(context).textTheme.bodyMedium)
-                  ?.copyWith(color: valueColor),
-        ),
-      ],
-    ),
+      const SizedBox(height: AppSpacing.s5),
+      PrimaryButton(
+        label: 'ENVIAR SOLICITAÇÃO',
+        loadingLabel: 'ENVIANDO',
+        loading: loading,
+        onPressed: send,
+      ),
+    ],
   );
 }
 

@@ -15,7 +15,7 @@ void main() {
     final repository = _RegistrationRepository();
     await _pumpLogin(tester, repository);
 
-    expect(find.text('Ainda não tem uma conta?'), findsOneWidget);
+    expect(find.text('Ainda não tem conta?'), findsOneWidget);
     final action = find.byKey(const ValueKey('open-registration'));
     await tester.ensureVisible(action);
     await tester.tap(action);
@@ -23,7 +23,7 @@ void main() {
 
     expect(find.text('Criar conta'), findsOneWidget);
     expect(find.text('Nome completo'), findsOneWidget);
-    expect(find.text('CRIAR MINHA CONTA'), findsOneWidget);
+    expect(find.text('CRIAR CONTA'), findsOneWidget);
   });
 
   testWidgets('form vazio mostra erros inline e não envia', (tester) async {
@@ -138,7 +138,7 @@ void main() {
     await tester.tap(submit);
     await tester.pump();
 
-    expect(find.text('Criando conta...'), findsOneWidget);
+    expect(find.text('CRIANDO CONTA'), findsOneWidget);
     expect(repository.registrationCalls, 1);
 
     pending.complete();
@@ -232,7 +232,7 @@ void main() {
       find.byKey(const ValueKey('registration-name')),
     );
     expect(nameField.controller?.text, '  Maria   da Silva  ');
-    expect(find.text('CRIAR MINHA CONTA'), findsOneWidget);
+    expect(find.text('CRIAR CONTA'), findsOneWidget);
   });
 
   testWidgets('sucesso confirma e volta para Login sem JWT local', (
@@ -275,7 +275,14 @@ void main() {
 
     final submit = find.byKey(const ValueKey('registration-submit'));
     await tester.ensureVisible(submit);
-    expect(tester.widget<ElevatedButton>(submit).onPressed, isNull);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.descendant(of: submit, matching: find.byType(FilledButton)),
+          )
+          .onPressed,
+      isNull,
+    );
 
     final terms = find.byKey(const ValueKey('accept-terms'));
     final privacy = find.byKey(const ValueKey('accept-privacy'));
@@ -290,13 +297,27 @@ void main() {
     await tester.ensureVisible(termsCheckbox);
     await tester.tap(termsCheckbox);
     await tester.pump();
-    expect(tester.widget<ElevatedButton>(submit).onPressed, isNull);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.descendant(of: submit, matching: find.byType(FilledButton)),
+          )
+          .onPressed,
+      isNull,
+    );
 
     await tester.ensureVisible(privacyCheckbox);
     await tester.tap(privacyCheckbox);
     await tester.pump();
     await tester.ensureVisible(submit);
-    expect(tester.widget<ElevatedButton>(submit).onPressed, isNotNull);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.descendant(of: submit, matching: find.byType(FilledButton)),
+          )
+          .onPressed,
+      isNotNull,
+    );
     await tester.tap(submit);
     await tester.pumpAndSettle();
 
@@ -474,6 +495,9 @@ Future<void> _tapSubmit(WidgetTester tester) async {
 }
 
 class _RegistrationRepository implements ClientRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
   _RegistrationRepository({
     this.pending,
     this.failure,
@@ -534,10 +558,6 @@ class _RegistrationRepository implements ClientRepository {
       _unavailable();
 
   @override
-  Future<List<PurchaseSummary>> loadPurchases(AuthSession session) async =>
-      _unavailable();
-
-  @override
   Future<CustomerIdentificationToken> createIdentificationToken(
     AuthSession session,
   ) async => _unavailable();
@@ -546,11 +566,5 @@ class _RegistrationRepository implements ClientRepository {
   Future<TemporaryQrToken> createCouponToken(
     AuthSession session,
     String couponId,
-  ) async => _unavailable();
-
-  @override
-  Future<ClientBootstrap> redeemReward(
-    AuthSession session,
-    String rewardId,
   ) async => _unavailable();
 }

@@ -20,179 +20,201 @@ class ProfilePage extends StatelessWidget {
   final ClientBootstrap data;
   final ThemeController? themeController;
 
+  void _logout(BuildContext context) {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    controller.logout();
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Perfil')),
-    body: SafeArea(
-      top: false,
-      child: AppContent(
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-          children: [
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              decoration: BoxDecoration(
-                color: AppColors.navy,
-                borderRadius: BorderRadius.circular(AppRadii.hero),
+  Widget build(BuildContext context) {
+    final canPop = Navigator.of(context).canPop();
+    final name = data.user.fullName.isEmpty
+        ? 'Cliente 24/7'
+        : data.user.fullName;
+    return Scaffold(
+      body: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          BrandHeader(
+            padding: EdgeInsets.fromLTRB(
+              canPop ? AppSpacing.s3 : AppSpacing.gutter,
+              AppSpacing.s3,
+              AppSpacing.gutter,
+              AppSpacing.s6,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (canPop) const BackButton(color: AppColors.onNavy),
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: canPop ? AppSpacing.s1 : 0,
+                    top: canPop ? AppSpacing.s2 : AppSpacing.s3,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          NavyAvatar(name: data.user.firstName),
+                          const SizedBox(width: AppSpacing.s4),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'CONTA 24/7',
+                                  style: context.eyebrowStyle.copyWith(
+                                    color: context.semantic.gold,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Semantics(
+                                  header: true,
+                                  child: Text(
+                                    name,
+                                    style: context.text.titleLarge?.copyWith(
+                                      color: AppColors.onNavy,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.s4),
+                      Row(
+                        children: [
+                          const ExcludeSemantics(
+                            child: Icon(
+                              Icons.apartment_rounded,
+                              size: AppSizes.iconMd,
+                              color: AppColors.onNavyMuted,
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.s2),
+                          Expanded(
+                            child: Text(
+                              data.condominium?.name ??
+                                  'Condomínio não informado',
+                              style: context.text.bodyMedium?.copyWith(
+                                color: AppColors.onNavyMuted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SafeArea(
+            top: false,
+            child: AppContent(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.gutter,
+                AppSpacing.s4,
+                AppSpacing.gutter,
+                AppSpacing.s8,
               ),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
+                  ListGroup(
                     children: [
-                      Container(
-                        width: 68,
-                        height: 68,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: AppColors.darkText.withValues(alpha: .12),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.darkText.withValues(alpha: .18),
+                      InfoRow(
+                        icon: Icons.badge_outlined,
+                        label: 'CPF',
+                        value: _maskCpf(data.user.cpf),
+                      ),
+                      InfoRow(
+                        icon: Icons.mail_outline_rounded,
+                        label: 'E-mail',
+                        value: _available(data.user.email),
+                      ),
+                      if (data.user.phone.isNotEmpty)
+                        InfoRow(
+                          icon: Icons.phone_outlined,
+                          label: 'Telefone',
+                          value: data.user.phone,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.section),
+                  const SectionHeader(title: 'Configurações'),
+                  ListGroup(
+                    children: [
+                      if (data.capabilities.preferences)
+                        AppListRow(
+                          key: const ValueKey('profile-open-preferences'),
+                          leading: const IconWell(icon: Icons.tune_rounded),
+                          title: 'Preferências',
+                          subtitle: 'Envio automático de comprovantes',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => PreferencesPage(
+                                controller: controller,
+                                themeController: themeController,
+                              ),
+                            ),
                           ),
                         ),
-                        child: Text(
-                          data.user.firstName.isEmpty
-                              ? '24'
-                              : data.user.firstName[0].toUpperCase(),
-                          style: Theme.of(context).textTheme.headlineMedium
-                              ?.copyWith(color: AppColors.darkText),
+                      if (themeController != null)
+                        AnimatedBuilder(
+                          animation: themeController!,
+                          builder: (context, _) => AppListRow(
+                            key: const ValueKey('profile-open-theme'),
+                            leading: const IconWell(
+                              icon: Icons.contrast_rounded,
+                            ),
+                            title: 'Tema',
+                            subtitle: _themeLabel(themeController!.mode),
+                            onTap: () =>
+                                _showThemePicker(context, themeController!),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'CONTA APP247',
-                              style: Theme.of(context).textTheme.labelMedium
-                                  ?.copyWith(
-                                    color: context.semantic.gold,
-                                    letterSpacing: 1,
-                                  ),
+                      AppListRow(
+                        leading: const IconWell(icon: Icons.gavel_rounded),
+                        title: 'Termos e privacidade',
+                        subtitle: 'Documentos oficiais do 24/7',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => LegalDocumentsPage(
+                              repository: controller.repository,
                             ),
-                            const SizedBox(height: AppSpacing.xxs),
-                            Text(
-                              data.user.fullName.isEmpty
-                                  ? 'Cliente 24/7'
-                                  : data.user.fullName,
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(color: AppColors.darkText),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.apartment_rounded,
-                        size: 18,
-                        color: AppColors.darkMuted,
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Expanded(
-                        child: Text(
-                          data.condominium?.name ?? 'Condomínio não informado',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: AppColors.darkMuted),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: AppSpacing.s8),
+                  SecondaryButton(
+                    label: 'SAIR DA CONTA',
+                    icon: Icons.logout_rounded,
+                    destructive: true,
+                    onPressed: () => _logout(context),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
-            AppCard(
-              child: Column(
-                children: [
-                  _DataRow(
-                    icon: Icons.badge_outlined,
-                    label: 'CPF',
-                    value: _maskCpf(data.user.cpf),
-                  ),
-                  const Divider(),
-                  _DataRow(
-                    icon: Icons.mail_outline,
-                    label: 'E-mail',
-                    value: _available(data.user.email),
-                  ),
-                  if (data.user.phone.isNotEmpty) ...[
-                    const Divider(),
-                    _DataRow(
-                      icon: Icons.phone_outlined,
-                      label: 'Telefone',
-                      value: data.user.phone,
-                    ),
-                  ],
-                  if (data.condominium != null) ...[
-                    const Divider(),
-                    _DataRow(
-                      icon: Icons.apartment_outlined,
-                      label: 'Condomínio',
-                      value: data.condominium!.name,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              'Configurações',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            if (data.capabilities.preferences)
-              _ActionRow(
-                key: const ValueKey('profile-open-preferences'),
-                icon: Icons.tune_rounded,
-                title: 'Preferências',
-                subtitle: 'Envio automático de comprovantes',
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => PreferencesPage(controller: controller),
-                  ),
-                ),
-              ),
-            if (themeController != null)
-              _ActionRow(
-                key: const ValueKey('profile-open-theme'),
-                icon: Icons.contrast_rounded,
-                title: 'Tema',
-                subtitle: _themeLabel(themeController!.mode),
-                onTap: () => _showThemePicker(context, themeController!),
-              ),
-            _ActionRow(
-              icon: Icons.gavel_outlined,
-              title: 'Termos e privacidade',
-              subtitle: 'Documentos oficiais do App247',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) =>
-                      LegalDocumentsPage(repository: controller.repository),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            OutlinedButton.icon(
-              onPressed: controller.logout,
-              icon: const Icon(Icons.logout),
-              label: const Text('Sair da conta'),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
-    ),
-  );
+    );
+  }
 }
 
 class PreferencesPage extends StatefulWidget {
-  const PreferencesPage({required this.controller, super.key});
+  const PreferencesPage({
+    required this.controller,
+    super.key,
+    this.themeController,
+  });
   final ClientController controller;
+  final ThemeController? themeController;
 
   @override
   State<PreferencesPage> createState() => _PreferencesPageState();
@@ -203,9 +225,9 @@ class _PreferencesPageState extends State<PreferencesPage> {
   String? error;
   bool loading = true;
   bool saving = false;
+  bool saved = false;
 
-  ClientFeatureRepository get repository =>
-      widget.controller.repository as ClientFeatureRepository;
+  ClientRepository get repository => widget.controller.repository;
 
   @override
   void initState() {
@@ -239,14 +261,20 @@ class _PreferencesPageState extends State<PreferencesPage> {
     setState(() {
       settings = value;
       saving = true;
+      saved = false;
       error = null;
     });
     try {
-      final saved = await repository.updatePreferences(
+      final result = await repository.updatePreferences(
         widget.controller.session!,
         value,
       );
-      if (mounted) setState(() => settings = saved);
+      if (mounted) {
+        setState(() {
+          settings = result;
+          saved = true;
+        });
+      }
     } on AppException catch (exception) {
       if (mounted) {
         setState(() {
@@ -259,9 +287,16 @@ class _PreferencesPageState extends State<PreferencesPage> {
     }
   }
 
+  void _toggle({bool? email, bool? whatsapp}) => update(
+    PreferenceSettings(
+      autoEmail: email ?? settings!.autoEmail,
+      autoWhatsapp: whatsapp ?? settings!.autoWhatsapp,
+    ),
+  );
+
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Preferências')),
+    appBar: const AppTopBar(title: 'Preferências'),
     body: SafeArea(
       top: false,
       child: loading
@@ -270,72 +305,151 @@ class _PreferencesPageState extends State<PreferencesPage> {
           ? Center(
               child: ErrorState(message: error!, onRetry: load),
             )
-          : AppContent(
-              child: ListView(
-                children: [
-                  Text(
-                    'Comprovantes automáticos',
-                    style: Theme.of(context).textTheme.titleLarge,
+          : ListView(
+              children: [
+                AppContent(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.gutter,
+                    AppSpacing.s2,
+                    AppSpacing.gutter,
+                    AppSpacing.s8,
                   ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    'Escolha os canais reais cadastrados para receber o comprovante após compras elegíveis.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: context.semantic.muted,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  AppCard(
-                    padding: EdgeInsets.zero,
-                    child: Column(
-                      children: [
-                        SwitchListTile(
-                          title: const Text('Enviar por e-mail'),
-                          subtitle: const Text('Usa o e-mail da sua conta'),
-                          value: settings!.autoEmail,
-                          onChanged: saving
-                              ? null
-                              : (value) => update(
-                                  PreferenceSettings(
-                                    autoEmail: value,
-                                    autoWhatsapp: settings!.autoWhatsapp,
-                                  ),
-                                ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Semantics(
+                        header: true,
+                        child: Text(
+                          'Envio automático de comprovantes',
+                          style: context.text.titleMedium,
                         ),
-                        const Divider(height: 1),
-                        SwitchListTile(
-                          title: const Text('Enviar por WhatsApp'),
-                          subtitle: const Text('Usa o telefone da sua conta'),
-                          value: settings!.autoWhatsapp,
-                          onChanged: saving
-                              ? null
-                              : (value) => update(
-                                  PreferenceSettings(
-                                    autoEmail: settings!.autoEmail,
-                                    autoWhatsapp: value,
-                                  ),
+                      ),
+                      const SizedBox(height: AppSpacing.s1),
+                      Text(
+                        'Receba o comprovante logo após cada compra no Terminal, nos contatos da sua conta.',
+                        style: context.text.bodySmall,
+                      ),
+                      const SizedBox(height: AppSpacing.s2),
+                      ListGroup(
+                        children: [
+                          _SwitchRow(
+                            icon: Icons.chat_outlined,
+                            title: 'Enviar por WhatsApp',
+                            subtitle: 'Usa o telefone da sua conta',
+                            value: settings!.autoWhatsapp,
+                            onChanged: saving
+                                ? null
+                                : (value) => _toggle(whatsapp: value),
+                          ),
+                          _SwitchRow(
+                            icon: Icons.mail_outline_rounded,
+                            title: 'Enviar por e-mail',
+                            subtitle: 'Usa o e-mail da sua conta',
+                            value: settings!.autoEmail,
+                            onChanged: saving
+                                ? null
+                                : (value) => _toggle(email: value),
+                          ),
+                        ],
+                      ),
+                      AnimatedSwitcher(
+                        duration: AppAnimations.medium,
+                        child: saving
+                            ? const Padding(
+                                key: ValueKey('saving'),
+                                padding: EdgeInsets.only(top: AppSpacing.s3),
+                                child: LinearProgressIndicator(minHeight: 3),
+                              )
+                            : error != null
+                            ? Padding(
+                                key: const ValueKey('error'),
+                                padding: const EdgeInsets.only(
+                                  top: AppSpacing.s3,
                                 ),
+                                child: Notice(
+                                  tone: NoticeTone.error,
+                                  icon: Icons.error_outline_rounded,
+                                  message: error!,
+                                  live: true,
+                                ),
+                              )
+                            : saved
+                            ? const Padding(
+                                key: ValueKey('saved'),
+                                padding: EdgeInsets.only(top: AppSpacing.s3),
+                                child: Notice(
+                                  tone: NoticeTone.success,
+                                  icon: Icons.check_circle_outline_rounded,
+                                  message: 'Preferências salvas.',
+                                  live: true,
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                      if (widget.themeController != null) ...[
+                        const SizedBox(height: AppSpacing.section),
+                        Semantics(
+                          header: true,
+                          child: Text('Tema', style: context.text.titleMedium),
+                        ),
+                        const SizedBox(height: AppSpacing.s3),
+                        AnimatedBuilder(
+                          animation: widget.themeController!,
+                          builder: (context, _) => ThemeModeSelector(
+                            controller: widget.themeController!,
+                          ),
                         ),
                       ],
-                    ),
+                    ],
                   ),
-                  if (saving) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    const LinearProgressIndicator(),
-                  ],
-                  if (error != null) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      error!,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+                ),
+              ],
             ),
     ),
+  );
+}
+
+class _SwitchRow extends StatelessWidget {
+  const _SwitchRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+  final IconData icon;
+  final String title, subtitle;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) => MergeSemantics(
+    child: AppListRow(
+      leading: IconWell(icon: icon),
+      title: title,
+      subtitle: subtitle,
+      onTap: onChanged == null ? null : () => onChanged!(!value),
+      showChevron: false,
+      trailing: Switch(value: value, onChanged: onChanged),
+    ),
+  );
+}
+
+/// Sistema · Claro · Escuro.
+class ThemeModeSelector extends StatelessWidget {
+  const ThemeModeSelector({required this.controller, super.key});
+  final ThemeController controller;
+
+  @override
+  Widget build(BuildContext context) => AppSegmented<ThemeMode>(
+    label: 'Tema',
+    selected: controller.mode,
+    onChanged: controller.setMode,
+    segments: const [
+      (ThemeMode.system, 'Sistema', Icons.brightness_auto_outlined),
+      (ThemeMode.light, 'Claro', Icons.light_mode_outlined),
+      (ThemeMode.dark, 'Escuro', Icons.dark_mode_outlined),
+    ],
   );
 }
 
@@ -368,105 +482,66 @@ class _LegalDocumentsPageState extends State<LegalDocumentsPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Termos e privacidade')),
+    appBar: const AppTopBar(title: 'Termos e privacidade'),
     body: SafeArea(
       top: false,
-      child: AppContent(
-        child: config == null && error == null
-            ? const LoadingSection(rows: 2)
-            : error != null
-            ? ErrorState(message: error!, onRetry: load)
-            : !config!.configured
-            ? const EmptyState(
+      child: config == null && error == null
+          ? const AppContent(child: LoadingSection(rows: 2))
+          : error != null
+          ? Center(
+              child: ErrorState(message: error!, onRetry: load),
+            )
+          : !config!.configured
+          ? const AppContent(
+              child: EmptyState(
                 icon: Icons.description_outlined,
                 title: 'Documentos não publicados',
                 message: 'Nenhum documento legal foi publicado pelo serviço.',
-              )
-            : ListView(
-                children: [
-                  _ActionRow(
-                    icon: Icons.description_outlined,
-                    title: 'Termos de Uso',
-                    subtitle: 'Versão ${config!.termsVersion}',
-                    onTap: () => launchUrl(
-                      config!.termsUrl!,
-                      mode: LaunchMode.externalApplication,
-                    ),
-                  ),
-                  _ActionRow(
-                    icon: Icons.privacy_tip_outlined,
-                    title: 'Política de Privacidade',
-                    subtitle: 'Versão ${config!.privacyVersion}',
-                    onTap: () => launchUrl(
-                      config!.privacyUrl!,
-                      mode: LaunchMode.externalApplication,
-                    ),
-                  ),
-                ],
               ),
-      ),
+            )
+          : ListView(
+              children: [
+                AppContent(
+                  child: ListGroup(
+                    children: [
+                      AppListRow(
+                        leading: const IconWell(
+                          icon: Icons.description_outlined,
+                        ),
+                        title: 'Termos de Uso',
+                        subtitle: 'Versão ${config!.termsVersion}',
+                        trailing: Icon(
+                          Icons.open_in_new_rounded,
+                          size: AppSizes.iconMd,
+                          color: context.semantic.muted,
+                        ),
+                        onTap: () => launchUrl(
+                          config!.termsUrl!,
+                          mode: LaunchMode.externalApplication,
+                        ),
+                      ),
+                      AppListRow(
+                        leading: const IconWell(
+                          icon: Icons.privacy_tip_outlined,
+                        ),
+                        title: 'Política de Privacidade',
+                        subtitle: 'Versão ${config!.privacyVersion}',
+                        trailing: Icon(
+                          Icons.open_in_new_rounded,
+                          size: AppSizes.iconMd,
+                          color: context.semantic.muted,
+                        ),
+                        onTap: () => launchUrl(
+                          config!.privacyUrl!,
+                          mode: LaunchMode.externalApplication,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
     ),
-  );
-}
-
-class _DataRow extends StatelessWidget {
-  const _DataRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-  final IconData icon;
-  final String label, value;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-    child: Row(
-      children: [
-        Icon(icon, color: Theme.of(context).colorScheme.primary),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: Theme.of(context).textTheme.labelMedium),
-              Text(value, style: Theme.of(context).textTheme.bodyLarge),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _ActionRow extends StatelessWidget {
-  const _ActionRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    super.key,
-  });
-  final IconData icon;
-  final String title, subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) => ListTile(
-    contentPadding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
-    leading: Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppRadii.small),
-      ),
-      child: Icon(icon),
-    ),
-    title: Text(title),
-    subtitle: Text(subtitle),
-    trailing: const Icon(Icons.chevron_right_rounded),
-    onTap: onTap,
   );
 }
 
@@ -476,23 +551,30 @@ Future<void> _showThemePicker(
 ) => showModalBottomSheet<void>(
   context: context,
   useSafeArea: true,
-  builder: (context) => RadioGroup<ThemeMode>(
-    groupValue: controller.mode,
-    onChanged: (value) {
-      if (value == null) return;
-      controller.setMode(value);
-      Navigator.of(context).pop();
-    },
-    child: Padding(
-      padding: EdgeInsets.all(AppSpacing.lg),
+  builder: (context) => AnimatedBuilder(
+    animation: controller,
+    builder: (context, _) => Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.gutter,
+        0,
+        AppSpacing.gutter,
+        AppSpacing.s8,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Tema', style: Theme.of(context).textTheme.titleLarge),
-          const RadioListTile(value: ThemeMode.system, title: Text('Sistema')),
-          const RadioListTile(value: ThemeMode.light, title: Text('Claro')),
-          const RadioListTile(value: ThemeMode.dark, title: Text('Escuro')),
+          Semantics(
+            header: true,
+            child: Text('Tema', style: context.text.titleLarge),
+          ),
+          const SizedBox(height: AppSpacing.s1),
+          Text(
+            'A mudança vale na hora e fica salva neste aparelho.',
+            style: context.text.bodySmall,
+          ),
+          const SizedBox(height: AppSpacing.s5),
+          ThemeModeSelector(controller: controller),
         ],
       ),
     ),

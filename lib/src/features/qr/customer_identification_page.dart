@@ -62,159 +62,176 @@ class _CustomerIdentificationPageState extends State<CustomerIdentificationPage>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Meu QR')),
-    body: SafeArea(
-      child: AppContent(
-        child: AnimatedBuilder(
-          animation: controller,
-          builder: (context, _) => LayoutBuilder(
-            builder: (context, constraints) {
-              final qrSize = math
-                  .min(288.0, constraints.maxWidth - 64)
-                  .clamp(200.0, 288.0)
-                  .toDouble();
-              return SingleChildScrollView(
-                padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-                child: Column(
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      decoration: BoxDecoration(
-                        color: AppColors.navy,
-                        borderRadius: BorderRadius.circular(AppRadii.hero),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.badge_outlined,
-                                color: AppColors.darkText,
-                              ),
-                              const SizedBox(width: AppSpacing.xs),
-                              Expanded(
-                                child: Text(
-                                  'IDENTIFICAÇÃO APP247',
-                                  style: Theme.of(context).textTheme.labelLarge
-                                      ?.copyWith(color: AppColors.darkText),
+    body: AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) => LayoutBuilder(
+        builder: (context, constraints) {
+          final qrSize = math
+              .min(240.0, constraints.maxWidth - 120)
+              .clamp(180.0, 240.0)
+              .toDouble();
+          final canPop = Navigator.of(context).canPop();
+          final failed =
+              controller.phase == CustomerIdentificationPhase.error ||
+              controller.phase == CustomerIdentificationPhase.offline;
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                BrandHeader(
+                  padding: EdgeInsets.fromLTRB(
+                    canPop ? AppSpacing.s3 : AppSpacing.gutter,
+                    AppSpacing.s3,
+                    AppSpacing.gutter,
+                    AppSpacing.s6,
+                  ),
+                  child: Row(
+                    children: [
+                      if (canPop) ...[
+                        const BackButton(color: AppColors.onNavy),
+                        const SizedBox(width: AppSpacing.s1),
+                      ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Semantics(
+                              header: true,
+                              child: Text(
+                                'Meu QR',
+                                style: context.text.titleLarge?.copyWith(
+                                  color: AppColors.onNavy,
                                 ),
                               ),
-                              Icon(
-                                Icons.shield_rounded,
-                                size: 20,
-                                color: context.semantic.gold,
+                            ),
+                            Text(
+                              'Identificação segura no Terminal',
+                              style: context.text.bodySmall?.copyWith(
+                                color: AppColors.onNavyMuted,
                               ),
-                            ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      ExcludeSemantics(
+                        child: Icon(
+                          Icons.verified_user_rounded,
+                          color: context.semantic.gold,
+                          size: AppSizes.iconLg,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SafeArea(
+                  top: false,
+                  child: AppContent(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.gutter,
+                      AppSpacing.s6,
+                      AppSpacing.gutter,
+                      AppSpacing.s8,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Mostre este QR no Terminal antes de finalizar sua compra.',
+                          textAlign: TextAlign.center,
+                          style: context.text.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
                           ),
-                          const SizedBox(height: AppSpacing.lg),
-                          _QrSurface(controller: controller, size: qrSize),
-                          const SizedBox(height: AppSpacing.md),
-                          _Status(controller: controller),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      'Use este código no Terminal antes de finalizar sua compra.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      _benefitMessage(widget.loyaltyMode),
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: context.semantic.muted,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        key: const ValueKey('customer-qr-generate'),
-                        onPressed: controller.isLoading
-                            ? null
-                            : controller.generate,
-                        icon: Icon(
-                          controller.hasValidQr
+                        ),
+                        const SizedBox(height: AppSpacing.s4),
+                        Center(
+                          child: _QrCard(controller: controller, size: qrSize),
+                        ),
+                        const SizedBox(height: AppSpacing.s3),
+                        Text(
+                          _benefitMessage(widget.loyaltyMode),
+                          textAlign: TextAlign.center,
+                          style: context.text.bodySmall,
+                        ),
+                        const SizedBox(height: AppSpacing.s6),
+                        PrimaryButton(
+                          key: const ValueKey('customer-qr-generate'),
+                          navy: true,
+                          label: failed ? 'TENTAR NOVAMENTE' : 'GERAR NOVO QR',
+                          icon: failed
                               ? Icons.refresh_rounded
                               : Icons.qr_code_2_rounded,
+                          onPressed: controller.isLoading
+                              ? null
+                              : controller.generate,
                         ),
-                        label: Text(
-                          controller.phase ==
-                                      CustomerIdentificationPhase.error ||
-                                  controller.phase ==
-                                      CustomerIdentificationPhase.offline
-                              ? 'TENTAR NOVAMENTE'
-                              : 'GERAR NOVO QR',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Semantics(
-                      container: true,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(
-                            Icons.shield_outlined,
-                            size: 20,
-                            color: AppColors.muted,
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
-                          Expanded(
-                            child: Text(
+                        const SizedBox(height: AppSpacing.s4),
+                        const Notice(
+                          icon: Icons.shield_outlined,
+                          message:
                               'Não compartilhe este QR. Ele é temporário e serve somente para vincular sua compra.',
-                              style: Theme.of(context).textTheme.bodyMedium
-                                  ?.copyWith(color: AppColors.muted),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: AppSpacing.s3),
+                        const Notice(message: terminalReminder),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              );
-            },
-          ),
-        ),
+              ],
+            ),
+          );
+        },
       ),
     ),
   );
 }
 
-class _QrSurface extends StatelessWidget {
-  const _QrSurface({required this.controller, required this.size});
+/// O QR em papel branco: módulos escuros em qualquer tema.
+class _QrCard extends StatelessWidget {
+  const _QrCard({required this.controller, required this.size});
 
   final CustomerIdentificationController controller;
   final double size;
 
   @override
   Widget build(BuildContext context) => Container(
-    width: size + 32,
-    height: size + 32,
-    padding: const EdgeInsets.all(AppSpacing.md),
+    width: size + AppSpacing.s5 * 2,
+    padding: const EdgeInsets.all(AppSpacing.s5),
     decoration: BoxDecoration(
       color: AppColors.qrPaper,
-      borderRadius: BorderRadius.circular(AppRadii.card),
-      border: Border.all(color: AppColors.line),
+      borderRadius: BorderRadius.circular(AppRadii.lg),
+      boxShadow: context.semantic.raisedShadow,
+      border: Border.all(color: context.colors.outline),
     ),
-    child: Center(child: _content(context)),
+    child: Column(
+      children: [
+        SizedBox.square(
+          dimension: size,
+          child: Center(
+            child: AnimatedSwitcher(
+              duration: AppAnimations.medium,
+              child: _content(context),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.s3),
+        _Status(controller: controller),
+      ],
+    ),
   );
 
   Widget _content(BuildContext context) {
     if (controller.isLoading) {
       return Semantics(
+        key: const ValueKey('qr-loading'),
         liveRegion: true,
         label: 'Gerando seu QR',
-        child: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: AppSpacing.md),
-            Text('Gerando seu QR...'),
-          ],
+        child: const SizedBox.square(
+          dimension: 28,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: AppColors.navy,
+            backgroundColor: Color(0xFFEEF3F8),
+          ),
         ),
       );
     }
@@ -228,7 +245,7 @@ class _QrSurface extends StatelessWidget {
           data: token.qrPayload,
           version: QrVersions.auto,
           size: size,
-          padding: const EdgeInsets.all(AppSpacing.xs),
+          padding: EdgeInsets.zero,
           backgroundColor: AppColors.qrPaper,
           eyeStyle: const QrEyeStyle(
             eyeShape: QrEyeShape.square,
@@ -241,76 +258,85 @@ class _QrSurface extends StatelessWidget {
         ),
       );
     }
-    return Icon(
-      controller.phase == CustomerIdentificationPhase.expired
-          ? Icons.timer_off_outlined
-          : Icons.qr_code_2_rounded,
-      size: 72,
-      color: controller.phase == CustomerIdentificationPhase.expired
-          ? AppColors.coral
-          : AppColors.muted,
+    final expired = controller.phase == CustomerIdentificationPhase.expired;
+    return ExcludeSemantics(
+      key: ValueKey(controller.phase),
+      child: Icon(
+        expired ? Icons.timer_off_outlined : Icons.qr_code_2_rounded,
+        size: 72,
+        color: expired ? const Color(0xFFBA1A1A) : const Color(0xFF607389),
+      ),
     );
   }
 }
 
+/// Contador sob o QR. Fica sempre sobre o papel branco, então usa as
+/// cores do tema claro nos dois temas.
 class _Status extends StatelessWidget {
   const _Status({required this.controller});
   final CustomerIdentificationController controller;
 
+  static const _ink = Color(0xFF10243B);
+  static const _muted = Color(0xFF607389);
+  static const _amber = Color(0xFFE8860C);
+  static const _error = Color(0xFFBA1A1A);
+
   @override
   Widget build(BuildContext context) {
-    final (text, color, icon) = switch (controller.phase) {
+    final base = context.text.bodySmall?.copyWith(
+      color: _muted,
+      fontWeight: FontWeight.w600,
+    );
+    final strong = context.text.titleMedium?.copyWith(
+      color: _ink,
+      fontWeight: FontWeight.w800,
+    );
+    final (Widget text, Color dot) = switch (controller.phase) {
       CustomerIdentificationPhase.initial ||
       CustomerIdentificationPhase.loading => (
-        'Gerando seu QR...',
-        AppColors.muted,
-        Icons.hourglass_top_rounded,
+        Text('Gerando seu QR...', style: base),
+        _muted,
       ),
       CustomerIdentificationPhase.valid => (
-        'Expira em ${_countdown(controller.remaining)}',
-        AppColors.fresh,
-        Icons.timer_outlined,
+        Text.rich(
+          TextSpan(
+            text: 'Expira em ',
+            children: [
+              TextSpan(text: _countdown(controller.remaining), style: strong),
+            ],
+          ),
+          style: base,
+        ),
+        _amber,
       ),
       CustomerIdentificationPhase.expired => (
-        'QR expirado',
-        AppColors.coral,
-        Icons.timer_off_outlined,
+        Text('QR expirado', style: base?.copyWith(color: _error)),
+        _error,
       ),
       CustomerIdentificationPhase.offline ||
       CustomerIdentificationPhase.error => (
-        controller.errorMessage ?? 'Não foi possível gerar seu QR.',
-        Theme.of(context).colorScheme.error,
-        Icons.error_outline_rounded,
+        Text(
+          controller.errorMessage ?? 'Não foi possível gerar seu QR.',
+          textAlign: TextAlign.center,
+          style: base?.copyWith(color: _error),
+        ),
+        _error,
       ),
     };
     return Semantics(
       liveRegion: true,
-      child: Container(
+      child: Row(
         key: const ValueKey('customer-qr-status'),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.qrPaper,
-          borderRadius: BorderRadius.circular(AppRadii.pill),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 18, color: color),
-            const SizedBox(width: AppSpacing.xs),
-            Flexible(
-              child: Text(
-                text,
-                textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(color: color),
-              ),
-            ),
-          ],
-        ),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Flexible(child: text),
+        ],
       ),
     );
   }

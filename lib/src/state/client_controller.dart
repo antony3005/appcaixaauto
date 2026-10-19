@@ -5,8 +5,12 @@ import '../data/session_store.dart';
 import '../domain/models.dart';
 
 class ClientController extends ChangeNotifier {
-  ClientController(this.repository, {SessionStore? sessionStore})
-    : sessionStore = sessionStore ?? MemorySessionStore() {
+  ClientController(
+    this.repository, {
+    SessionStore? sessionStore,
+    DateTime Function()? clock,
+  }) : sessionStore = sessionStore ?? MemorySessionStore(),
+       clock = clock ?? DateTime.now {
     if (repository is SessionExpirationAware) {
       (repository as SessionExpirationAware).setSessionExpiredHandler(
         expireSession,
@@ -15,6 +19,7 @@ class ClientController extends ChangeNotifier {
   }
   final ClientRepository repository;
   final SessionStore sessionStore;
+  final DateTime Function() clock;
 
   AuthSession? session;
   ClientBootstrap? data;
@@ -203,22 +208,17 @@ class ClientController extends ChangeNotifier {
     );
     notifyListeners();
     try {
-      if (repository is ClientFeatureRepository) {
-        final featureRepository = repository as ClientFeatureRepository;
-        await featureRepository.redeemRewardWithKey(active, rewardId, key);
-        final results = await Future.wait<Object>([
-          featureRepository.loadLoyalty(active),
-          featureRepository.loadRewards(active),
-          featureRepository.loadCoupons(active),
-        ]);
-        data = data?.copyWith(
-          loyalty: results.whereType<LoyaltySummary>().first,
-          rewards: results.whereType<List<RewardSummary>>().first,
-          coupons: results.whereType<List<CouponSummary>>().first,
-        );
-      } else {
-        data = await repository.redeemReward(active, rewardId);
-      }
+      await repository.redeemRewardWithKey(active, rewardId, key);
+      final results = await Future.wait<Object>([
+        repository.loadLoyalty(active),
+        repository.loadRewards(active),
+        repository.loadCoupons(active),
+      ]);
+      data = data?.copyWith(
+        loyalty: results.whereType<LoyaltySummary>().first,
+        rewards: results.whereType<List<RewardSummary>>().first,
+        coupons: results.whereType<List<CouponSummary>>().first,
+      );
       _redemptionKeys.remove(rewardId);
       errorMessage = null;
       return true;

@@ -16,7 +16,6 @@ abstract interface class ClientRepository {
   Future<void> registerClient(ClientRegistrationRequest request);
   Future<AuthSession> linkTenant(AuthSession session, String invitationToken);
   Future<ClientBootstrap> loadBootstrap(AuthSession session);
-  Future<List<PurchaseSummary>> loadPurchases(AuthSession session);
   Future<CustomerIdentificationToken> createIdentificationToken(
     AuthSession session,
   );
@@ -24,14 +23,6 @@ abstract interface class ClientRepository {
     AuthSession session,
     String couponId,
   );
-  Future<ClientBootstrap> redeemReward(AuthSession session, String rewardId);
-}
-
-abstract interface class SessionExpirationAware {
-  void setSessionExpiredHandler(SessionExpiredHandler handler);
-}
-
-abstract interface class ClientFeatureRepository {
   Future<PageResult<ProductSummary>> loadCatalog(
     AuthSession session, {
     String? query,
@@ -71,4 +62,8 @@ abstract interface class ClientFeatureRepository {
     AuthSession session,
     PreferenceSettings preferences,
   );
+}
+
+abstract interface class SessionExpirationAware {
+  void setSessionExpiredHandler(SessionExpiredHandler handler);
 }

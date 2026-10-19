@@ -25,8 +25,8 @@ void main() {
         '123.456.789-01',
       );
       await tester.enterText(find.byType(TextFormField).at(1), 'segredo8');
-      await tester.ensureVisible(find.text('Entrar'));
-      await tester.tap(find.text('Entrar'));
+      await tester.ensureVisible(find.text('ACESSAR'));
+      await tester.tap(find.text('ACESSAR'));
       await tester.pumpAndSettle();
 
       // Home.
@@ -37,25 +37,16 @@ void main() {
         find.byKey(const ValueKey('open-customer-identification')),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Meu QR'), findsOneWidget);
-      await tester.pageBack();
-      await tester.pumpAndSettle();
+      expect(find.text('Identificação segura no Terminal'), findsOneWidget);
 
       // Catálogo e detalhe do produto.
-      await tester.scrollUntilVisible(
-        find.text('Ver catálogo'),
-        260,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.text('Ver catálogo'));
+      await tester.tap(find.text('Catálogo').last);
       await tester.pumpAndSettle();
-      expect(find.text('Catálogo'), findsOneWidget);
+      expect(find.text('Consulte antes de ir ao Terminal'), findsOneWidget);
       await tester.tap(find.text('Café torrado e moído tradicional 500 g'));
       await tester.pumpAndSettle();
       expect(find.text('Detalhe do produto'), findsOneWidget);
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      await tester.pageBack();
+      await tester.tap(find.byTooltip('Voltar').last);
       await tester.pumpAndSettle();
 
       // Compras e detalhe.
@@ -65,16 +56,20 @@ void main() {
       await tester.tap(find.text('Aprovada').first);
       await tester.pumpAndSettle();
       expect(find.text('Detalhe da compra'), findsOneWidget);
-      await tester.pageBack();
+      await tester.tap(find.byTooltip('Voltar').last);
       await tester.pumpAndSettle();
 
       // Benefícios.
-      await tester.tap(find.text('Benefícios').last);
+      await tester.tap(find.text('Início').last);
       await tester.pumpAndSettle();
-      expect(find.text('Meus pontos'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('home-open-benefits')));
+      await tester.pumpAndSettle();
+      expect(find.text('MEUS PONTOS'), findsOneWidget);
+      await tester.tap(find.byTooltip('Voltar').last);
+      await tester.pumpAndSettle();
 
       // Perfil.
-      await tester.tap(find.text('Perfil').last);
+      await tester.tap(find.byKey(const ValueKey('home-open-profile')));
       await tester.pumpAndSettle();
       expect(find.text('Jefferson Silva'), findsOneWidget);
 

@@ -30,108 +30,132 @@ class BenefitsPage extends StatelessWidget {
   };
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(title)),
-    body: SafeArea(
-      child: AppContent(
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: controller,
+    builder: (context, _) => _build(context, controller.data ?? data),
+  );
+
+  Widget _build(BuildContext context, ClientBootstrap data) {
+    final loyalty = data.loyalty;
+    return Scaffold(
+      appBar: AppTopBar(title: title),
+      body: SafeArea(
+        top: false,
         child: ListView(
-          padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+          padding: const EdgeInsets.only(bottom: AppSpacing.s8),
           children: [
-            if (showOverview && data.loyalty != null)
-              _BalanceHero(
-                summary: data.loyalty!,
-                capabilities: data.capabilities,
-              ),
-            if (showOverview && data.loyalty?.movements.isNotEmpty == true) ...[
-              const SizedBox(height: AppSpacing.lg),
-              const SectionHeader(title: 'Movimentações'),
-              const SizedBox(height: AppSpacing.sm),
-              AppCard(
-                child: Column(
-                  children: data.loyalty!.movements
-                      .map(
-                        (movement) => _MovementRow(
-                          movement: movement,
-                          mode: data.loyalty!.mode,
-                        ),
-                      )
-                      .toList(),
-                ),
-              ),
-            ],
-            if (showRewards && data.capabilities.rewards) ...[
-              SizedBox(height: showOverview ? AppSpacing.lg : AppSpacing.xs),
-              if (showOverview) const SectionHeader(title: 'Recompensas'),
-              const SizedBox(height: AppSpacing.sm),
-              if (data.rewards.isEmpty)
-                const EmptyState(
-                  icon: Icons.redeem_outlined,
-                  title: 'Nenhuma recompensa disponível',
-                  message:
-                      'Novas opções aparecerão aqui quando estiverem disponíveis.',
-                )
-              else
-                ...data.rewards.map(
-                  (reward) => Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: _RewardCard(
-                      reward: reward,
-                      busy: controller.redeemingRewardId == reward.id,
-                      onRedeem: () => _confirmReward(context, reward),
-                    ),
-                  ),
-                ),
-            ],
-            if (showCoupons && data.capabilities.coupons) ...[
-              SizedBox(height: showOverview ? AppSpacing.lg : AppSpacing.xs),
-              if (showOverview) const SectionHeader(title: 'Meus cupons'),
-              const SizedBox(height: AppSpacing.sm),
-              if (data.coupons.isEmpty)
-                const EmptyState(
-                  icon: Icons.confirmation_number_outlined,
-                  title: 'Nenhum cupom disponível',
-                  message: 'Você ainda não possui cupons disponíveis.',
-                )
-              else
-                ..._couponGroups(data.coupons).entries.expand(
-                  (group) => [
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        top: AppSpacing.sm,
-                        bottom: AppSpacing.xs,
-                      ),
-                      child: Text(
-                        group.key,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                    ...group.value.map(
-                      (coupon) => Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: _CouponCard(
-                          coupon: coupon,
-                          onUse: coupon.status == CouponStatus.available
-                              ? () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => TemporaryQrPage.coupon(
-                                      repository: controller.repository,
-                                      session: controller.session!,
-                                      coupon: coupon,
-                                    ),
-                                  ),
-                                )
-                              : null,
-                        ),
-                      ),
+            AppContent(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (showOverview && loyalty != null) ...[
+                    const SizedBox(height: AppSpacing.s2),
+                    PointsCard(
+                      label: loyalty.mode == LoyaltyMode.cashback
+                          ? 'Meu cashback'
+                          : 'Meus pontos',
+                      value: loyalty.mode == LoyaltyMode.cashback
+                          ? money(loyalty.cashback ?? 0)
+                          : points(loyalty.points ?? 0),
+                      unit: loyalty.mode == LoyaltyMode.cashback ? null : 'pts',
+                      caption: loyalty.nextReward != null
+                          ? 'Próxima recompensa: ${points(loyalty.nextReward!.pointsCost)} pts'
+                          : 'Troque por descontos no Terminal',
                     ),
                   ],
-                ),
-            ],
+                  if (showOverview &&
+                      loyalty?.movements.isNotEmpty == true) ...[
+                    const SizedBox(height: AppSpacing.section),
+                    const SectionHeader(title: 'Movimentações'),
+                    ListGroup(
+                      children: [
+                        for (final movement in loyalty!.movements)
+                          _MovementRow(movement: movement, mode: loyalty.mode),
+                      ],
+                    ),
+                  ],
+                  if (showRewards && data.capabilities.rewards) ...[
+                    SizedBox(
+                      height: showOverview ? AppSpacing.section : AppSpacing.s2,
+                    ),
+                    if (showOverview) const SectionHeader(title: 'Recompensas'),
+                    if (data.rewards.isEmpty)
+                      const EmptyState(
+                        icon: Icons.redeem_outlined,
+                        title: 'Nenhuma recompensa disponível',
+                        message:
+                            'Novas opções aparecerão aqui quando estiverem disponíveis.',
+                      )
+                    else
+                      ListGroup(
+                        children: [
+                          for (final reward in data.rewards)
+                            _RewardRow(
+                              reward: reward,
+                              busy: controller.redeemingRewardId == reward.id,
+                              onRedeem: () => _confirmReward(context, reward),
+                            ),
+                        ],
+                      ),
+                  ],
+                  if (showCoupons && data.capabilities.coupons) ...[
+                    SizedBox(
+                      height: showOverview ? AppSpacing.section : AppSpacing.s2,
+                    ),
+                    if (showOverview) const SectionHeader(title: 'Meus cupons'),
+                    if (data.coupons.isEmpty)
+                      const EmptyState(
+                        icon: Icons.confirmation_number_outlined,
+                        title: 'Nenhum cupom disponível',
+                        message: 'Você ainda não possui cupons disponíveis.',
+                      )
+                    else
+                      for (final group in _couponGroups(
+                        data.coupons,
+                      ).entries) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            top: AppSpacing.s3,
+                            bottom: AppSpacing.s1,
+                          ),
+                          child: Text(
+                            group.key.toUpperCase(),
+                            style: context.eyebrowStyle.copyWith(
+                              color: context.semantic.muted,
+                            ),
+                          ),
+                        ),
+                        ListGroup(
+                          children: [
+                            for (final coupon in group.value)
+                              _CouponRow(
+                                coupon: coupon,
+                                onUse: coupon.status == CouponStatus.available
+                                    ? () => Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) =>
+                                              TemporaryQrPage.coupon(
+                                                repository:
+                                                    controller.repository,
+                                                session: controller.session!,
+                                                coupon: coupon,
+                                              ),
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                          ],
+                        ),
+                      ],
+                  ],
+                ],
+              ),
+            ),
           ],
         ),
       ),
-    ),
-  );
+    );
+  }
 
   Future<void> _confirmReward(
     BuildContext context,
@@ -140,7 +164,12 @@ class BenefitsPage extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Trocar ${reward.pointsCost} pontos por ${reward.title}?'),
+        icon: const Center(
+          child: IconWell(icon: Icons.redeem_rounded, tone: WellTone.gold),
+        ),
+        title: Text(
+          'Trocar ${points(reward.pointsCost)} pontos por ${reward.title}?',
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -148,16 +177,36 @@ class BenefitsPage extends StatelessWidget {
             Text('Compra mínima: ${money(reward.minimumPurchase)}'),
             if (reward.maximumDiscount != null)
               Text('Desconto máximo: ${money(reward.maximumDiscount!)}'),
+            const SizedBox(height: AppSpacing.s2),
+            Text(
+              'O cupom fica disponível para usar no Terminal.',
+              style: context.text.bodySmall,
+            ),
           ],
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(
+          AppSpacing.s6,
+          0,
+          AppSpacing.s6,
+          AppSpacing.s6,
+        ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirmar'),
+          Row(
+            children: [
+              Expanded(
+                child: SecondaryButton(
+                  label: 'CANCELAR',
+                  onPressed: () => Navigator.pop(context, false),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.s3),
+              Expanded(
+                child: PrimaryButton(
+                  label: 'TROCAR',
+                  onPressed: () => Navigator.pop(context, true),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -177,54 +226,8 @@ class BenefitsPage extends StatelessWidget {
   }
 }
 
-class _BalanceHero extends StatelessWidget {
-  const _BalanceHero({required this.summary, required this.capabilities});
-  final LoyaltySummary summary;
-  final ClientCapabilities capabilities;
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(AppSpacing.lg),
-    decoration: BoxDecoration(
-      color: AppColors.navy,
-      borderRadius: BorderRadius.circular(AppRadii.hero),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.stars_rounded, color: context.semantic.gold, size: 36),
-        const SizedBox(height: AppSpacing.md),
-        Text(
-          summary.mode == LoyaltyMode.points ? 'Meus pontos' : 'Meu cashback',
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(color: AppColors.darkMuted),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          summary.mode == LoyaltyMode.points
-              ? '${summary.points ?? 0} pts'
-              : money(summary.cashback ?? 0),
-          style: Theme.of(
-            context,
-          ).textTheme.displaySmall?.copyWith(color: AppColors.darkText),
-        ),
-        if (summary.mode == LoyaltyMode.points &&
-            summary.nextReward != null) ...[
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'Próxima recompensa: ${summary.nextReward!.pointsCost} pts',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: AppColors.darkText),
-          ),
-        ],
-      ],
-    ),
-  );
-}
-
-class _RewardCard extends StatelessWidget {
-  const _RewardCard({
+class _RewardRow extends StatelessWidget {
+  const _RewardRow({
     required this.reward,
     required this.busy,
     required this.onRedeem,
@@ -232,157 +235,135 @@ class _RewardCard extends StatelessWidget {
   final RewardSummary reward;
   final bool busy;
   final VoidCallback onRedeem;
-  @override
-  Widget build(BuildContext context) => AppCard(
-    variant: AppCardVariant.premium,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: context.semantic.gold.withValues(alpha: .14),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.redeem_rounded, color: context.semantic.gold),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(
-                reward.title,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
-          decoration: BoxDecoration(
-            color: context.semantic.gold.withValues(alpha: .14),
-            borderRadius: BorderRadius.circular(AppRadii.pill),
-          ),
-          child: Text(
-            '${reward.pointsCost} pontos',
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(color: context.semantic.onGold),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          'Em compras acima de ${money(reward.minimumPurchase)}',
-          style: Theme.of(context).textTheme.bodyLarge,
-        ),
-        if (reward.maximumDiscount != null)
-          Text(
-            'Desconto máximo: ${money(reward.maximumDiscount!)}',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: context.semantic.muted),
-          ),
-        if (reward.validUntil != null)
-          Text(
-            'Válida até ${localDate(reward.validUntil!)}',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: context.semantic.muted),
-          ),
-        if (!reward.available && reward.unavailableReason?.isNotEmpty == true)
-          Text(
-            reward.unavailableReason!,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.error,
-            ),
-          ),
-        const SizedBox(height: AppSpacing.md),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: reward.available && !busy ? onRedeem : null,
-            icon: const Icon(Icons.redeem_rounded),
-            label: Text(
-              busy
-                  ? 'Resgatando...'
-                  : reward.available
-                  ? 'Trocar'
-                  : 'Indisponível',
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
 
-class _CouponCard extends StatelessWidget {
-  const _CouponCard({required this.coupon, required this.onUse});
-  final CouponSummary coupon;
-  final VoidCallback? onUse;
   @override
   Widget build(BuildContext context) {
-    final label = switch (coupon.status) {
-      CouponStatus.available => 'Disponível',
-      CouponStatus.reserved => 'Reservado',
-      CouponStatus.used => 'Usado',
-      CouponStatus.expired => 'Expirado',
-      CouponStatus.cancelled => 'Cancelado',
-      CouponStatus.unknown => 'Em atualização',
-    };
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    final conditions = [
+      'Em compras acima de ${money(reward.minimumPurchase)}',
+      if (reward.maximumDiscount != null)
+        'máx. ${money(reward.maximumDiscount!)}',
+      if (reward.validUntil != null) 'até ${localDate(reward.validUntil!)}',
+    ].join(' · ');
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const IconWell(icon: Icons.redeem_rounded, tone: WellTone.gold),
+          const SizedBox(width: AppSpacing.s3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    coupon.title,
-                    style: Theme.of(context).textTheme.titleLarge,
+                Text(reward.title, style: context.text.titleSmall),
+                const SizedBox(height: 2),
+                Text(conditions, style: context.text.bodySmall),
+                if (!reward.available &&
+                    reward.unavailableReason?.isNotEmpty == true) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    reward.unavailableReason!,
+                    style: context.text.bodySmall?.copyWith(
+                      color: context.colors.error,
+                    ),
                   ),
-                ),
-                Text(
-                  label,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: coupon.status == CouponStatus.available
-                        ? AppColors.fresh
-                        : AppColors.muted,
-                  ),
+                ],
+                const SizedBox(height: AppSpacing.s3),
+                Wrap(
+                  spacing: AppSpacing.s3,
+                  runSpacing: AppSpacing.s2,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    AppTag(label: '${points(reward.pointsCost)} pontos'),
+                    SizedBox(
+                      height: 40,
+                      child: FilledButton(
+                        onPressed: reward.available && !busy ? onRedeem : null,
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(88, 40),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.s4,
+                          ),
+                        ),
+                        child: busy
+                            ? DotsLoader(color: context.colors.onPrimary)
+                            : Text(
+                                reward.available ? 'TROCAR' : 'INDISPONÍVEL',
+                              ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.sm),
-            Text('Compra mínima: ${money(coupon.minimumPurchase)}'),
-            if (coupon.maximumDiscount != null)
-              Text('Desconto máximo: ${money(coupon.maximumDiscount!)}'),
-            Text(
-              'Válido até ${localDate(coupon.validUntil)}',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColors.muted),
-            ),
-            if (onUse != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: onUse,
-                  icon: const Icon(Icons.qr_code_rounded),
-                  label: const Text('Usar no Terminal'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CouponRow extends StatelessWidget {
+  const _CouponRow({required this.coupon, required this.onUse});
+  final CouponSummary coupon;
+  final VoidCallback? onUse;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, tone) = switch (coupon.status) {
+      CouponStatus.available => ('Disponível', StatusTone.success),
+      CouponStatus.reserved => ('Reservado', StatusTone.warning),
+      CouponStatus.used => ('Usado', StatusTone.neutral),
+      CouponStatus.expired => ('Expirado', StatusTone.error),
+      CouponStatus.cancelled => ('Cancelado', StatusTone.error),
+      CouponStatus.unknown => ('Em atualização', StatusTone.neutral),
+    };
+    final details = [
+      'Compra mínima: ${money(coupon.minimumPurchase)}',
+      if (coupon.maximumDiscount != null)
+        'máx. ${money(coupon.maximumDiscount!)}',
+      'válido até ${localDate(coupon.validUntil)}',
+    ].join(' · ');
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.s3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          IconWell(
+            icon: Icons.confirmation_number_outlined,
+            tone: onUse != null ? WellTone.primary : WellTone.neutral,
+          ),
+          const SizedBox(width: AppSpacing.s3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(coupon.title, style: context.text.titleSmall),
+                const SizedBox(height: 2),
+                Text(details, style: context.text.bodySmall),
+                const SizedBox(height: AppSpacing.s2),
+                Wrap(
+                  spacing: AppSpacing.s3,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    StatusDot(label: label, tone: tone),
+                    if (onUse != null)
+                      TextButton.icon(
+                        onPressed: onUse,
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.s1,
+                          ),
+                        ),
+                        icon: const Icon(Icons.qr_code_2_rounded),
+                        label: const Text('Usar no Terminal'),
+                      ),
+                  ],
                 ),
-              ),
-            ],
-          ],
-        ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -395,61 +376,28 @@ class _MovementRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final points = movement.pointsDelta ?? 0;
+    final pointsDelta = movement.pointsDelta ?? 0;
     final cashback = movement.cashbackDelta ?? 0;
-    final positive = mode == LoyaltyMode.points ? points >= 0 : cashback >= 0;
-    final amount = mode == LoyaltyMode.points
-        ? '${points >= 0 ? '+' : ''}$points pts'
-        : '${cashback >= 0 ? '+' : '-'} ${money(cashback.abs())}';
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: positive
-                  ? context.semantic.successContainer
-                  : Theme.of(context).colorScheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(AppRadii.small),
-            ),
-            child: Icon(
-              positive ? Icons.add_rounded : Icons.remove_rounded,
-              color: positive
-                  ? context.semantic.success
-                  : context.semantic.muted,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  movement.description.isEmpty
-                      ? movement.type
-                      : movement.description,
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                Text(
-                  localDate(movement.createdAt),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.semantic.muted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            amount,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: positive
-                  ? context.semantic.success
-                  : Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-        ],
+    final positive = mode == LoyaltyMode.cashback
+        ? cashback >= 0
+        : pointsDelta >= 0;
+    final amount = mode == LoyaltyMode.cashback
+        ? '${cashback >= 0 ? '+' : '−'} ${money(cashback.abs())}'
+        : '${pointsDelta >= 0 ? '+' : '−'}${points(pointsDelta.abs())} pts';
+    return AppListRow(
+      leading: IconWell(
+        icon: positive ? Icons.add_rounded : Icons.remove_rounded,
+        tone: positive ? WellTone.success : WellTone.neutral,
+      ),
+      title: movement.description.isEmpty
+          ? movement.type
+          : movement.description,
+      subtitle: localDate(movement.createdAt),
+      trailing: Text(
+        amount,
+        style: context.text.titleSmall?.copyWith(
+          color: positive ? context.semantic.success : context.colors.onSurface,
+        ),
       ),
     );
   }

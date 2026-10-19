@@ -21,10 +21,14 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      final controller = ClientController(_VisualRepository())
-        ..session = const AuthSession(token: 'visual-test', user: _user)
-        ..data = _data
-        ..phase = LoadPhase.ready;
+      final controller =
+          ClientController(
+              _VisualRepository(),
+              clock: () => DateTime(2026, 9, 13, 15),
+            )
+            ..session = const AuthSession(token: 'visual-test', user: _user)
+            ..data = _data
+            ..phase = LoadPhase.ready;
 
       await tester.pumpWidget(
         MaterialApp(
@@ -105,6 +109,9 @@ final _data = ClientBootstrap(
 
 class _VisualRepository implements ClientRepository {
   @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
+  @override
   Future<void> requestPasswordRecovery(String cpf) async => _unavailable();
 
   @override
@@ -141,9 +148,6 @@ class _VisualRepository implements ClientRepository {
   Future<ClientBootstrap> loadBootstrap(AuthSession session) async =>
       _unavailable();
   @override
-  Future<List<PurchaseSummary>> loadPurchases(AuthSession session) async =>
-      _unavailable();
-  @override
   Future<CustomerIdentificationToken> createIdentificationToken(
     AuthSession session,
   ) async => _unavailable();
@@ -151,10 +155,5 @@ class _VisualRepository implements ClientRepository {
   Future<TemporaryQrToken> createCouponToken(
     AuthSession session,
     String couponId,
-  ) async => _unavailable();
-  @override
-  Future<ClientBootstrap> redeemReward(
-    AuthSession session,
-    String rewardId,
   ) async => _unavailable();
 }

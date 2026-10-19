@@ -39,12 +39,20 @@ void main() {
       flutterCache = parent;
     }
     final fonts = '${flutterCache.path}/artifacts/material_fonts';
-    final regularFont = await File('$fonts/Roboto-Regular.ttf').readAsBytes();
-    final boldFont = await File('$fonts/Roboto-Bold.ttf').readAsBytes();
-    await (FontLoader('Roboto')
-          ..addFont(Future.value(ByteData.sublistView(regularFont)))
-          ..addFont(Future.value(ByteData.sublistView(boldFont))))
-        .load();
+    final jakarta = FontLoader(AppTheme.fontFamily);
+    for (final weight in [
+      'Regular',
+      'Medium',
+      'SemiBold',
+      'Bold',
+      'ExtraBold',
+    ]) {
+      final bytes = await File(
+        'assets/fonts/PlusJakartaSans-$weight.ttf',
+      ).readAsBytes();
+      jakarta.addFont(Future.value(ByteData.sublistView(bytes)));
+    }
+    await jakarta.load();
     final iconFont = await File(
       '$fonts/MaterialIcons-Regular.otf',
     ).readAsBytes();
@@ -55,7 +63,7 @@ void main() {
   });
 
   setUp(() {
-    controller = ClientController(repository)
+    controller = ClientController(repository, clock: _afternoon)
       ..session = const AuthSession(token: 'visual-only', user: _user)
       ..data = _bootstrap
       ..phase = LoadPhase.ready;
@@ -139,7 +147,9 @@ void main() {
       PurchaseDetailPage(purchase: _purchase, controller: controller),
       'light/suporte.png',
       interact: (tester) async {
-        await tester.tap(find.text('Preciso de ajuda com esta compra'));
+        final action = find.text('PRECISO DE AJUDA');
+        await tester.ensureVisible(action);
+        await tester.tap(action);
       },
     );
     await _capture(
@@ -161,7 +171,7 @@ void main() {
       BenefitsPage(controller: controller, data: _bootstrap),
       'light/resgate.png',
       interact: (tester) async {
-        final action = find.text('Trocar');
+        final action = find.text('TROCAR');
         await tester.ensureVisible(action);
         await tester.tap(action);
       },
@@ -248,12 +258,14 @@ void main() {
     tester,
   ) async {
     await _surface(tester);
-    await tester.pumpWidget(App247Client(repository: repository));
+    await tester.pumpWidget(
+      App247Client(repository: repository, clock: _afternoon),
+    );
 
     await tester.tap(find.byKey(const ValueKey('open-registration')));
     await tester.pumpAndSettle();
     expect(find.byType(RegistrationPage), findsOneWidget);
-    await tester.pageBack();
+    await tester.tap(find.byTooltip('Voltar').last);
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('open-password-recovery')));
@@ -267,26 +279,32 @@ void main() {
     await _surface(tester);
     await _loginThroughUi(tester, repository);
 
-    await tester.tap(find.byKey(const ValueKey('home-open-catalog')));
+    final catalogLink = find.byKey(const ValueKey('home-open-catalog'));
+    await tester.ensureVisible(catalogLink);
+    await tester.tap(catalogLink);
     await tester.pumpAndSettle();
     expect(find.byType(CatalogPage), findsOneWidget);
     await tester.tap(find.byType(ProductCard).first);
     await tester.pumpAndSettle();
     expect(find.byType(ProductDetailPage), findsOneWidget);
-    await tester.pageBack();
+    await tester.tap(find.byTooltip('Voltar').last);
     await tester.pumpAndSettle();
-    await tester.pageBack();
+    await tester.tap(find.text('Início').last);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('home-open-rewards')));
+    final rewards = find.byKey(const ValueKey('home-open-rewards'));
+    await tester.ensureVisible(rewards);
+    await tester.tap(rewards);
     await tester.pumpAndSettle();
     expect(find.byType(BenefitsPage), findsOneWidget);
     expect(find.text('Recompensas'), findsWidgets);
     expect(find.text('Meus cupons'), findsNothing);
-    await tester.pageBack();
+    await tester.tap(find.byTooltip('Voltar').last);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('home-open-coupons')));
+    final coupons = find.byKey(const ValueKey('home-open-coupons'));
+    await tester.ensureVisible(coupons);
+    await tester.tap(coupons);
     await tester.pumpAndSettle();
     expect(find.byType(BenefitsPage), findsOneWidget);
     expect(find.text('Usar no Terminal'), findsOneWidget);
@@ -311,26 +329,30 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(PurchaseDetailPage), findsOneWidget);
 
-    await tester.tap(find.text('Ver comprovante'));
+    await tester.ensureVisible(find.text('VER COMPROVANTE'));
+    await tester.tap(find.text('VER COMPROVANTE'));
     await tester.pumpAndSettle();
     expect(find.byType(ReceiptPage), findsOneWidget);
-    await tester.pageBack();
+    await tester.tap(find.byTooltip('Voltar').last);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Preciso de ajuda com esta compra'));
+    await tester.ensureVisible(find.text('PRECISO DE AJUDA'));
+    await tester.tap(find.text('PRECISO DE AJUDA'));
     await tester.pumpAndSettle();
-    expect(find.text('Enviar solicitação'), findsOneWidget);
-    Navigator.of(tester.element(find.text('Enviar solicitação'))).pop();
+    expect(find.text('ENVIAR SOLICITAÇÃO'), findsOneWidget);
+    Navigator.of(tester.element(find.text('ENVIAR SOLICITAÇÃO'))).pop();
     await tester.pumpAndSettle();
-    await tester.pageBack();
+    await tester.tap(find.byTooltip('Voltar').last);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Perfil').last);
+    await tester.tap(find.text('Início').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('home-open-profile')));
     await tester.pumpAndSettle();
     expect(find.byType(ProfilePage), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('profile-open-preferences')));
     await tester.pumpAndSettle();
     expect(find.byType(PreferencesPage), findsOneWidget);
-    await tester.pageBack();
+    await tester.tap(find.byTooltip('Voltar').last);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('profile-open-theme')));
     await tester.pumpAndSettle();
@@ -344,10 +366,12 @@ Future<void> _loginThroughUi(
   WidgetTester tester,
   ClientRepository repository,
 ) async {
-  await tester.pumpWidget(App247Client(repository: repository));
+  await tester.pumpWidget(
+    App247Client(repository: repository, clock: _afternoon),
+  );
   await tester.enterText(find.byType(TextFormField).at(0), '123.456.789-01');
   await tester.enterText(find.byType(TextFormField).at(1), 'segredo8');
-  await tester.tap(find.text('Entrar'));
+  await tester.tap(find.text('ACESSAR'));
   await tester.pumpAndSettle();
   expect(find.byType(ClientShell), findsOneWidget);
 }
@@ -412,35 +436,8 @@ Future<void> _capture(
   );
 }
 
-ThemeData _visualTheme(ThemeData source) {
-  final text = source.textTheme.apply(fontFamily: 'Roboto');
-  final label = text.labelLarge;
-  return source.copyWith(
-    textTheme: text,
-    appBarTheme: source.appBarTheme.copyWith(titleTextStyle: text.titleLarge),
-    filledButtonTheme: FilledButtonThemeData(
-      style: (source.filledButtonTheme.style ?? const ButtonStyle()).copyWith(
-        textStyle: WidgetStatePropertyAll(label),
-      ),
-    ),
-    outlinedButtonTheme: OutlinedButtonThemeData(
-      style: (source.outlinedButtonTheme.style ?? const ButtonStyle()).copyWith(
-        textStyle: WidgetStatePropertyAll(label),
-      ),
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: (source.elevatedButtonTheme.style ?? const ButtonStyle()).copyWith(
-        textStyle: WidgetStatePropertyAll(label),
-      ),
-    ),
-    textButtonTheme: TextButtonThemeData(
-      style: (source.textButtonTheme.style ?? const ButtonStyle()).copyWith(
-        textStyle: WidgetStatePropertyAll(label),
-      ),
-    ),
-    chipTheme: source.chipTheme.copyWith(labelStyle: text.labelMedium),
-  );
-}
+// O tema já usa a Plus Jakarta Sans carregada no setUpAll.
+ThemeData _visualTheme(ThemeData source) => source;
 
 const _user = ClientUser(
   id: 'user-visual',
@@ -507,6 +504,8 @@ final _detail = PurchaseDetail(
     ),
   ],
 );
+
+DateTime _afternoon() => DateTime(2026, 9, 13, 15);
 
 final _bootstrap = ClientBootstrap(
   user: _user,
@@ -582,7 +581,7 @@ final _bootstrap = ClientBootstrap(
   ],
 );
 
-class _VisualRepository implements ClientRepository, ClientFeatureRepository {
+class _VisualRepository implements ClientRepository {
   _VisualRepository(this.receiptBytes);
   final Uint8List receiptBytes;
 
@@ -594,10 +593,6 @@ class _VisualRepository implements ClientRepository, ClientFeatureRepository {
   @override
   Future<ClientBootstrap> loadBootstrap(AuthSession session) async =>
       _bootstrap;
-  @override
-  Future<List<PurchaseSummary>> loadPurchases(AuthSession session) async => [
-    _purchase,
-  ];
   @override
   Future<void> requestPasswordRecovery(String cpf) async {}
   @override
@@ -640,11 +635,6 @@ class _VisualRepository implements ClientRepository, ClientFeatureRepository {
     expiresAt: DateTime.now().add(const Duration(minutes: 2)),
     serverTime: DateTime.now(),
   );
-  @override
-  Future<ClientBootstrap> redeemReward(
-    AuthSession session,
-    String rewardId,
-  ) async => _bootstrap;
   @override
   Future<PageResult<ProductSummary>> loadCatalog(
     AuthSession session, {
@@ -784,7 +774,7 @@ Future<Uint8List> _receiptPng() async {
     40,
     700,
     22,
-    color: AppColors.fresh,
+    color: AppSemanticColors.light.success,
     weight: FontWeight.w700,
   );
   label('Compra #APP247-2026-0913', 40, 755, 19);

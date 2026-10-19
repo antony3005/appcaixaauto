@@ -13,8 +13,8 @@ void main() {
     expect(find.textContaining('Finalizar compra'), findsNothing);
     expect(find.text('Carrinho'), findsNothing);
 
-    await tester.ensureVisible(find.text('Entrar'));
-    await tester.tap(find.text('Entrar'));
+    await tester.ensureVisible(find.text('ACESSAR'));
+    await tester.tap(find.text('ACESSAR'));
     await tester.pump();
     expect(find.text('Informe um CPF com 11 números.'), findsOneWidget);
     expect(find.text('Informe sua senha.'), findsOneWidget);
@@ -26,8 +26,8 @@ void main() {
     await tester.pumpWidget(App247Client(repository: FixtureRepository()));
     await tester.enterText(find.byType(TextFormField).at(0), '123.456.789-01');
     await tester.enterText(find.byType(TextFormField).at(1), 'segredo8');
-    await tester.ensureVisible(find.text('Entrar'));
-    await tester.tap(find.text('Entrar'));
+    await tester.ensureVisible(find.text('ACESSAR'));
+    await tester.tap(find.text('ACESSAR'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Jefferson'), findsOneWidget);
@@ -35,11 +35,11 @@ void main() {
     expect(find.text('Catálogo'), findsWidgets);
     expect(find.text('850 pts'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('Ofertas para você'),
+      find.text('Promoções de hoje'),
       240,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.text('Ofertas para você'), findsOneWidget);
+    expect(find.text('Promoções de hoje'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Compras recentes'),
       300,
@@ -49,8 +49,12 @@ void main() {
     expect(find.text('Aprovada'), findsOneWidget);
     expect(find.text('Início'), findsOneWidget);
     expect(find.text('Compras'), findsOneWidget);
-    expect(find.text('Benefícios'), findsOneWidget);
-    expect(find.text('Perfil'), findsOneWidget);
+    expect(find.text('Meu QR'), findsWidgets);
+    expect(find.text('Benefícios', skipOffstage: false), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('home-open-profile'), skipOffstage: false),
+      findsOneWidget,
+    );
     expect(find.text('Comprar'), findsNothing);
     expect(find.text('Adicionar ao carrinho'), findsNothing);
   });
@@ -61,14 +65,33 @@ void main() {
     );
     await tester.enterText(find.byType(TextFormField).at(0), '123.456.789-01');
     await tester.enterText(find.byType(TextFormField).at(1), 'segredo8');
-    await tester.ensureVisible(find.text('Entrar'));
-    await tester.tap(find.text('Entrar'));
+    await tester.ensureVisible(find.text('ACESSAR'));
+    await tester.tap(find.text('ACESSAR'));
     await tester.pumpAndSettle();
 
     expect(find.text('Seu histórico começa aqui'), findsOneWidget);
     expect(find.text('Benefícios'), findsNothing);
-    expect(find.text('Ofertas para você'), findsNothing);
+    expect(find.text('Promoções de hoje'), findsNothing);
     expect(find.text('Catálogo'), findsNothing);
+  });
+
+  testWidgets('home sem promoções ativas não destaca ofertas', (tester) async {
+    await tester.pumpWidget(
+      App247Client(repository: FixtureRepository(promotions: false)),
+    );
+    await tester.enterText(find.byType(TextFormField).at(0), '123.456.789-01');
+    await tester.enterText(find.byType(TextFormField).at(1), 'segredo8');
+    await tester.ensureVisible(find.text('ACESSAR'));
+    await tester.tap(find.text('ACESSAR'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('No seu mercado'),
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('No seu mercado'), findsOneWidget);
+    expect(find.text('Promoções de hoje'), findsNothing);
   });
 
   testWidgets('atalho Meu QR abre identificação sem fluxo de pagamento', (
@@ -77,8 +100,8 @@ void main() {
     await tester.pumpWidget(App247Client(repository: FixtureRepository()));
     await tester.enterText(find.byType(TextFormField).at(0), '123.456.789-01');
     await tester.enterText(find.byType(TextFormField).at(1), 'segredo8');
-    await tester.ensureVisible(find.text('Entrar'));
-    await tester.tap(find.text('Entrar'));
+    await tester.ensureVisible(find.text('ACESSAR'));
+    await tester.tap(find.text('ACESSAR'));
     await tester.pumpAndSettle();
 
     expect(find.text('Meu QR'), findsWidgets);
@@ -89,15 +112,16 @@ void main() {
     await tester.pump();
 
     expect(find.text('Meu QR'), findsWidgets);
-    expect(find.text('IDENTIFICAÇÃO APP247'), findsOneWidget);
+    expect(find.text('Identificação segura no Terminal'), findsOneWidget);
     expect(find.textContaining('Pagar no app'), findsNothing);
     expect(find.textContaining('Finalizar compra'), findsNothing);
-    await tester.pageBack();
-    await tester.pumpAndSettle();
   });
 }
 
 class FixtureRepository implements ClientRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
   @override
   Future<void> requestPasswordRecovery(String cpf) async {}
 
@@ -121,8 +145,9 @@ class FixtureRepository implements ClientRepository {
     AuthSession session,
     String invitationToken,
   ) async => throw const AppException('Método fora do escopo desta fixture.');
-  FixtureRepository({this.empty = false});
+  FixtureRepository({this.empty = false, this.promotions = true});
   final bool empty;
+  final bool promotions;
 
   static const user = ClientUser(
     id: 'user-fixture',
@@ -157,9 +182,9 @@ class FixtureRepository implements ClientRepository {
         id: 'cond-fixture',
         name: 'Residencial Parque das Flores',
       ),
-      capabilities: const ClientCapabilities(
+      capabilities: ClientCapabilities(
         catalog: true,
-        promotions: true,
+        promotions: promotions,
         loyalty: true,
         points: true,
         rewards: true,
@@ -224,10 +249,6 @@ class FixtureRepository implements ClientRepository {
   }
 
   @override
-  Future<List<PurchaseSummary>> loadPurchases(AuthSession session) async =>
-      (await loadBootstrap(session)).purchases;
-
-  @override
   Future<CustomerIdentificationToken> createIdentificationToken(
     AuthSession session,
   ) async => CustomerIdentificationToken(
@@ -244,8 +265,4 @@ class FixtureRepository implements ClientRepository {
     value: 'opaque-test-coupon-token',
     expiresAt: DateTime.now().add(const Duration(seconds: 90)),
   );
-
-  @override
-  Future<ClientBootstrap> redeemReward(AuthSession session, String rewardId) =>
-      loadBootstrap(session);
 }

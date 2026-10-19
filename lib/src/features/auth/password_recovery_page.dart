@@ -60,63 +60,75 @@ class _PasswordRecoveryPageState extends State<PasswordRecoveryPage> {
     animation: controller,
     builder: (context, _) {
       final state = controller.state;
+      final done = state.step == PasswordRecoveryStep.success;
       return Scaffold(
-        appBar: AppBar(title: const Text('Recuperar senha')),
+        appBar: const AppTopBar(title: 'Recuperar senha', showBack: true),
         body: SafeArea(
           top: false,
-          child: AppContent(
-            child: Form(
-              key: formKey,
-              child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                children: [
-                  _StepIndicator(step: state.step),
-                  const SizedBox(height: AppSpacing.xl),
-                  AnimatedSwitcher(
-                    duration: AppAnimations.medium,
-                    switchInCurve: AppAnimations.emphasized,
-                    child: _content(state),
+          child: Form(
+            key: formKey,
+            child: ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              children: [
+                AppContent(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.gutter,
+                    AppSpacing.s2,
+                    AppSpacing.gutter,
+                    AppSpacing.s8,
                   ),
-                  if (state.message != null) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    _InlineMessage(
-                      icon: Icons.mark_email_read_outlined,
-                      message: state.message!,
-                    ),
-                  ],
-                  if (state.error != null) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    Semantics(
-                      liveRegion: true,
-                      child: Text(
-                        state.error!,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (!done) ...[
+                        _StepIndicator(step: state.step),
+                        const SizedBox(height: AppSpacing.s8),
+                      ],
+                      AnimatedSwitcher(
+                        duration: AppAnimations.medium,
+                        switchInCurve: AppAnimations.emphasized,
+                        switchOutCurve: AppAnimations.exit,
+                        child: _content(state),
                       ),
-                    ),
-                  ],
-                  const SizedBox(height: AppSpacing.lg),
-                  if (state.step != PasswordRecoveryStep.success)
-                    FilledButton(
-                      key: const ValueKey('password-recovery-submit'),
-                      onPressed: state.busy ? null : submit,
-                      child: state.busy
-                          ? const SizedBox.square(
-                              dimension: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Text(_buttonLabel(state.step)),
-                    ),
-                  if (state.step == PasswordRecoveryStep.code) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    TextButton(
-                      onPressed: state.busy ? null : controller.restart,
-                      child: const Text('Usar outro CPF'),
-                    ),
-                  ],
-                ],
-              ),
+                      if (state.message != null) ...[
+                        const SizedBox(height: AppSpacing.s5),
+                        Notice(
+                          icon: Icons.mark_email_read_outlined,
+                          message: state.message!,
+                          live: true,
+                        ),
+                      ],
+                      if (state.error != null) ...[
+                        const SizedBox(height: AppSpacing.s5),
+                        Notice(
+                          tone: NoticeTone.error,
+                          icon: Icons.error_outline_rounded,
+                          message: state.error!,
+                          live: true,
+                        ),
+                      ],
+                      if (!done) ...[
+                        const SizedBox(height: AppSpacing.s6),
+                        PrimaryButton(
+                          key: const ValueKey('password-recovery-submit'),
+                          label: _buttonLabel(state.step),
+                          loading: state.busy,
+                          onPressed: submit,
+                        ),
+                      ],
+                      if (state.step == PasswordRecoveryStep.code) ...[
+                        const SizedBox(height: AppSpacing.s2),
+                        Center(
+                          child: TextButton(
+                            onPressed: state.busy ? null : controller.restart,
+                            child: const Text('Usar outro CPF'),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -127,19 +139,21 @@ class _PasswordRecoveryPageState extends State<PasswordRecoveryPage> {
   Widget _content(PasswordRecoveryState state) => switch (state.step) {
     PasswordRecoveryStep.request => Column(
       key: const ValueKey('recovery-request'),
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text('Vamos localizar sua conta', style: _title),
-        const SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.s2),
         Text(
           'Informe seu CPF. Por segurança, a resposta será a mesma mesmo que a conta não exista.',
           style: _body,
         ),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.s8),
         TextFormField(
           controller: cpf,
           inputFormatters: <TextInputFormatter>[cpfMask],
           keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.done,
+          onFieldSubmitted: (_) => submit(),
           autofocus: true,
           decoration: const InputDecoration(
             labelText: 'CPF',
@@ -154,19 +168,22 @@ class _PasswordRecoveryPageState extends State<PasswordRecoveryPage> {
     ),
     PasswordRecoveryStep.code => Column(
       key: const ValueKey('recovery-code'),
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text('Digite o código', style: _title),
-        const SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.s2),
         Text('Use o código recebido no e-mail cadastrado.', style: _body),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.s8),
         TextFormField(
           controller: code,
           keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.done,
+          onFieldSubmitted: (_) => submit(),
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           autofillHints: const [AutofillHints.oneTimeCode],
           decoration: const InputDecoration(
             labelText: 'Código de verificação',
+            hintText: 'Somente números',
             prefixIcon: Icon(Icons.password_rounded),
           ),
           validator: (value) => (value?.trim().isNotEmpty ?? false)
@@ -177,19 +194,21 @@ class _PasswordRecoveryPageState extends State<PasswordRecoveryPage> {
     ),
     PasswordRecoveryStep.newPassword => Column(
       key: const ValueKey('recovery-password'),
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text('Crie uma nova senha', style: _title),
-        const SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.s2),
         Text('Use entre 8 e 100 caracteres.', style: _body),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.s8),
         TextFormField(
           controller: password,
           obscureText: obscure,
+          textInputAction: TextInputAction.next,
           autofillHints: const [AutofillHints.newPassword],
           decoration: InputDecoration(
             labelText: 'Nova senha',
-            prefixIcon: const Icon(Icons.lock_outline),
+            hintText: 'Entre 8 e 100 caracteres',
+            prefixIcon: const Icon(Icons.lock_outline_rounded),
             suffixIcon: IconButton(
               tooltip: obscure ? 'Mostrar senha' : 'Ocultar senha',
               onPressed: () => setState(() => obscure = !obscure),
@@ -197,6 +216,7 @@ class _PasswordRecoveryPageState extends State<PasswordRecoveryPage> {
                 obscure
                     ? Icons.visibility_outlined
                     : Icons.visibility_off_outlined,
+                size: AppSizes.iconMd,
               ),
             ),
           ),
@@ -207,7 +227,7 @@ class _PasswordRecoveryPageState extends State<PasswordRecoveryPage> {
                 : 'A senha deve ter entre 8 e 100 caracteres.';
           },
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.s5),
         TextFormField(
           controller: confirmation,
           obscureText: obscure,
@@ -215,7 +235,8 @@ class _PasswordRecoveryPageState extends State<PasswordRecoveryPage> {
           onFieldSubmitted: (_) => submit(),
           decoration: const InputDecoration(
             labelText: 'Confirmar nova senha',
-            prefixIcon: Icon(Icons.lock_reset_outlined),
+            hintText: 'Repita a nova senha',
+            prefixIcon: Icon(Icons.lock_reset_rounded),
           ),
           validator: (value) =>
               value == password.text ? null : 'As senhas precisam ser iguais.',
@@ -225,35 +246,50 @@ class _PasswordRecoveryPageState extends State<PasswordRecoveryPage> {
     PasswordRecoveryStep.success => Column(
       key: const ValueKey('recovery-success'),
       children: [
-        Icon(
-          Icons.check_circle_rounded,
-          size: 72,
-          color: context.semantic.success,
+        const SizedBox(height: AppSpacing.s8),
+        ExcludeSemantics(
+          child: Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: context.semantic.successContainer,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.check_rounded,
+              size: 36,
+              color: context.semantic.success,
+            ),
+          ),
         ),
-        const SizedBox(height: AppSpacing.md),
-        Text('Senha redefinida', style: _title, textAlign: TextAlign.center),
-        const SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.s6),
+        Semantics(
+          liveRegion: true,
+          child: Text(
+            'Senha redefinida',
+            style: _title,
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.s2),
         Text(
           'Você já pode entrar usando a nova senha.',
           style: _body,
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: AppSpacing.lg),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Voltar ao login'),
-          ),
+        const SizedBox(height: AppSpacing.s8),
+        PrimaryButton(
+          label: 'VOLTAR AO LOGIN',
+          icon: Icons.arrow_forward_rounded,
+          onPressed: () => Navigator.of(context).pop(),
         ),
       ],
     ),
   };
 
-  TextStyle? get _title => Theme.of(context).textTheme.headlineSmall;
-  TextStyle? get _body => Theme.of(
-    context,
-  ).textTheme.bodyLarge?.copyWith(color: context.semantic.muted);
+  TextStyle? get _title => context.text.headlineSmall;
+  TextStyle? get _body =>
+      context.text.bodyMedium?.copyWith(color: context.semantic.muted);
 }
 
 class _StepIndicator extends StatelessWidget {
@@ -265,54 +301,43 @@ class _StepIndicator extends StatelessWidget {
     final index = PasswordRecoveryStep.values.indexOf(step).clamp(0, 2);
     return Semantics(
       label: 'Etapa ${index + 1} de 3',
-      child: Row(
-        children: List.generate(
-          3,
-          (item) => Expanded(
-            child: AnimatedContainer(
-              duration: AppAnimations.short,
-              height: 4,
-              margin: EdgeInsets.only(right: item == 2 ? 0 : AppSpacing.xs),
-              decoration: BoxDecoration(
-                color: item <= index
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.surfaceContainerHigh,
-                borderRadius: BorderRadius.circular(AppRadii.pill),
+      excludeSemantics: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ETAPA ${index + 1} DE 3',
+            style: context.eyebrowStyle.copyWith(color: context.semantic.muted),
+          ),
+          const SizedBox(height: AppSpacing.s2),
+          Row(
+            children: List.generate(
+              3,
+              (item) => Expanded(
+                child: AnimatedContainer(
+                  duration: AppAnimations.medium,
+                  curve: AppAnimations.standard,
+                  height: 4,
+                  margin: EdgeInsets.only(right: item == 2 ? 0 : AppSpacing.s2),
+                  decoration: BoxDecoration(
+                    color: item <= index
+                        ? context.colors.primary
+                        : context.colors.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
+                  ),
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
-class _InlineMessage extends StatelessWidget {
-  const _InlineMessage({required this.icon, required this.message});
-  final IconData icon;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(AppSpacing.md),
-    decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.primaryContainer,
-      borderRadius: BorderRadius.circular(AppRadii.control),
-    ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: Theme.of(context).colorScheme.primary),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(child: Text(message)),
-      ],
-    ),
-  );
-}
-
 String _buttonLabel(PasswordRecoveryStep step) => switch (step) {
-  PasswordRecoveryStep.request => 'Enviar código',
-  PasswordRecoveryStep.code => 'Validar código',
-  PasswordRecoveryStep.newPassword => 'Redefinir senha',
-  PasswordRecoveryStep.success => 'Voltar ao login',
+  PasswordRecoveryStep.request => 'ENVIAR CÓDIGO',
+  PasswordRecoveryStep.code => 'VALIDAR CÓDIGO',
+  PasswordRecoveryStep.newPassword => 'REDEFINIR SENHA',
+  PasswordRecoveryStep.success => 'VOLTAR AO LOGIN',
 };

@@ -67,6 +67,9 @@ void main() {
 }
 
 class _SessionRepository implements ClientRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
   static const user = ClientUser(
     id: 'user-1',
     firstName: 'Ana',
@@ -122,9 +125,6 @@ class _SessionRepository implements ClientRepository {
   ) async => session;
 
   @override
-  Future<List<PurchaseSummary>> loadPurchases(AuthSession session) async => [];
-
-  @override
   Future<CustomerIdentificationToken> createIdentificationToken(
     AuthSession session,
   ) async => CustomerIdentificationToken(
@@ -142,14 +142,9 @@ class _SessionRepository implements ClientRepository {
     expiresAt: DateTime.now().add(const Duration(minutes: 2)),
     serverTime: DateTime.now(),
   );
-
-  @override
-  Future<ClientBootstrap> redeemReward(AuthSession session, String rewardId) =>
-      loadBootstrap(session);
 }
 
-class _RedemptionRepository extends _SessionRepository
-    implements ClientFeatureRepository {
+class _RedemptionRepository extends _SessionRepository {
   final keys = <String>[];
 
   @override

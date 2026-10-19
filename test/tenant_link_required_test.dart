@@ -149,6 +149,9 @@ void main() {
 }
 
 class _GlobalAccountRepository implements ClientRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
   _GlobalAccountRepository({this.linkPending, this.linkFailure});
 
   final Completer<void>? linkPending;
@@ -226,10 +229,6 @@ class _GlobalAccountRepository implements ClientRepository {
       _unused();
 
   @override
-  Future<List<PurchaseSummary>> loadPurchases(AuthSession session) async =>
-      _unused();
-
-  @override
   Future<CustomerIdentificationToken> createIdentificationToken(
     AuthSession session,
   ) async => _unused();
@@ -238,11 +237,5 @@ class _GlobalAccountRepository implements ClientRepository {
   Future<TemporaryQrToken> createCouponToken(
     AuthSession session,
     String couponId,
-  ) async => _unused();
-
-  @override
-  Future<ClientBootstrap> redeemReward(
-    AuthSession session,
-    String rewardId,
   ) async => _unused();
 }

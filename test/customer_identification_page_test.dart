@@ -22,7 +22,10 @@ void main() {
 
     expect(find.text('Gerando seu QR...'), findsWidgets);
     final button = tester.widget<FilledButton>(
-      find.byKey(const ValueKey('customer-qr-generate')),
+      find.descendant(
+        of: find.byKey(const ValueKey('customer-qr-generate')),
+        matching: find.byType(FilledButton),
+      ),
     );
     expect(button.onPressed, isNull);
     pending.complete(_token('loading-complete', now));
